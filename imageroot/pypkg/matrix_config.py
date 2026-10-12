@@ -21,7 +21,7 @@ PREFIXES = {k: k + "_" for k in BRIDGES}
 PREFIXES["heisenbridge"] = "hbirc_"
 TCP_NAMES = ("gateway", "element", "ketesa", "maubot", "hookshot", "buscarron", "jwt", "livekit", "turn", "livekit_tcp", "postmoogle", "postgres", "synapse", "discord", "telegram", "whatsapp", "signal", "heisenbridge", "hookshot_as", "steam")
 HOST_EXTENSIONS = ("ketesa", "maubot", "hookshot", "buscarron")
-RESERVED_SYNAPSE = {"server_name", "public_baseurl", "listeners", "database", "media_store_path", "signing_key_path", "log_config", "app_service_config_files", "modules", "password_providers", "registration_shared_secret", "macaroon_secret_key", "form_secret", "turn_uris", "turn_shared_secret", "matrix_rtc", "extra_well_known_client_content"}
+RESERVED_SYNAPSE = {"server_name", "public_baseurl", "listeners", "database", "media_store_path", "signing_key_path", "log_config", "app_service_config_files", "modules", "password_providers", "password_config", "enable_registration", "registration_requires_token", "enable_registration_without_verification", "registration_shared_secret", "macaroon_secret_key", "form_secret", "turn_uris", "turn_shared_secret", "matrix_rtc", "extra_well_known_client_content"}
 
 
 def defaults():

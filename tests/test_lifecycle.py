@@ -128,6 +128,21 @@ class Lifecycle(unittest.TestCase):
         self.assertFalse(result["changed"])
         self.assertFalse((self.state / "restart-required").exists())
 
+    def test_recovery_rotation_updates_the_account_and_saved_password(self):
+        with patch.object(self.runtime, "login", return_value="admin-token"), patch.object(self.runtime, "http", return_value={}) as api:
+            result = self.runtime.recovery(rotate=True)
+        api.assert_called_once_with(
+            "/_synapse/admin/v1/reset_password/%40recovery-admin%3Aexample.com",
+            {"new_password": result["password"], "logout_devices": True}, token="admin-token")
+        self.assertNotEqual(result["password"], self.values["recovery_admin"])
+        self.assertEqual(m.secret_store(self.state)["recovery_admin"], result["password"])
+
+    def test_failed_recovery_rotation_keeps_the_previous_password(self):
+        with patch.object(self.runtime, "login", return_value="admin-token"), patch.object(self.runtime, "http", side_effect=RuntimeError("API failed")):
+            with self.assertRaisesRegex(RuntimeError, "API failed"):
+                self.runtime.recovery(rotate=True)
+        self.assertEqual(m.secret_store(self.state)["recovery_admin"], self.values["recovery_admin"])
+
 
 if __name__ == "__main__":
     unittest.main()

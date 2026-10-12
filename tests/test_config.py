@@ -85,9 +85,13 @@ class Configuration(unittest.TestCase):
             m.validate(cfg)
 
     def test_infrastructure_cannot_be_overridden_in_synapse_extra(self):
-        for key in ("database", "server_name", "modules", "registration_shared_secret"):
-            with self.assertRaises(ValueError):
-                m.validate({"synapse_extra": {key: {}}}, configured())
+        overrides = {"database": {}, "server_name": "other.example.com", "modules": [],
+                     "registration_shared_secret": "other-secret", "password_config": {"localdb_enabled": False},
+                     "enable_registration": True, "registration_requires_token": False,
+                     "enable_registration_without_verification": True}
+        for key, value in overrides.items():
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                m.validate({"synapse_extra": {key: value}}, configured())
 
     def test_full_stack_render_is_idempotent_and_all_json_is_readable(self):
         cfg = everything()

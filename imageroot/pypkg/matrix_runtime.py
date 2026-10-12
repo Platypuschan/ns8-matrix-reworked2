@@ -336,7 +336,7 @@ if not os.path.exists(path):
             if rotate:
                 token = self.login(user, values["recovery_admin"])
                 password = secrets.token_urlsafe(36)
-                self.http("/_synapse/admin/v1/reset_password", {"user_id": user, "new_password": password, "logout_devices": True}, token=token)
+                self.http("/_synapse/admin/v1/reset_password/" + quote(user, safe=""), {"new_password": password, "logout_devices": True}, token=token)
                 values["recovery_admin"] = password
                 configlib.write(self.state / "secrets.json", values)
             return {"user": user, "password": values["recovery_admin"], "maubot_user": "recovery-admin", "maubot_password": values["maubot_admin"] if cfg["extensions"]["maubot"]["enabled"] else ""}
