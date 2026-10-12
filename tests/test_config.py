@@ -217,6 +217,9 @@ class Configuration(unittest.TestCase):
             if name in ("discord", "telegram", "whatsapp", "signal", "steam"):
                 self.assertIn("--entrypoint", plan)
                 self.assertEqual(plan[plan.index("--entrypoint") + 1], "/app/steam" if name == "steam" else "/usr/bin/mautrix-" + name)
+            if name == "ketesa":
+                self.assertIn("127.0.0.1:" + str(self.portmap[name]) + ":8080/tcp", plan)
+                self.assertIn("SERVER_HOST=0.0.0.0", plan)
             if name not in ("turn", "postmoogle", "livekit"):
                 for i, arg in enumerate(plan):
                     if arg == "--publish":

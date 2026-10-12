@@ -59,6 +59,7 @@ for attempt in {1..60}; do
 done
 curl -fsS "http://127.0.0.1:$maubot_port/_matrix/maubot/" > /dev/null
 curl -fsS "http://127.0.0.1:$ketesa_port/" > /dev/null
+curl -fsS "http://127.0.0.1:$ketesa_port/config.json" | jq -e '.restrictBaseUrl == "https://matrix.example.test"' > /dev/null
 echo 'maubot and Ketesa HTTP servers passed'
 
 if action configure-module "$(jq '.extensions.telegram={enabled:true}' "$work/extensions.json")" > "$work/invalid.json" 2>/dev/null; then

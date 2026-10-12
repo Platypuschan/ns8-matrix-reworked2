@@ -138,7 +138,8 @@ class Runtime:
             tail = ["-c", "mkdir -p /data/plugins /data/trash /data/dbs && exec python3 -m maubot -c /config/config.yaml --no-update"]
         elif name == "ketesa":
             mount(gen / name / "config.json", "/var/public/config.json")
-            publish(self.portmap[name], 80)
+            args += ["--env", "SERVER_HOST=0.0.0.0"]
+            publish(self.portmap[name], 8080)
         elif name == "draupnir":
             data("/data")
             mount(gen / name / "config.yaml", "/data/config/production.yaml")
