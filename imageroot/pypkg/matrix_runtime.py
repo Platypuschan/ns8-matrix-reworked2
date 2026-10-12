@@ -205,11 +205,11 @@ if not os.path.exists(path):
             if not self.sql("SELECT 1 FROM pg_database WHERE datname='" + name + "';"):
                 self.sql("CREATE DATABASE " + name + " OWNER " + name + " ENCODING 'UTF8' LC_COLLATE 'C' LC_CTYPE 'C' TEMPLATE template0;")
 
-    def http(self, path, data=None, token=None, method=None):
+    def http(self, path, data=None, token=None, method=None, port=None):
         headers = {"Content-Type": "application/json"}
         if token:
             headers["Authorization"] = "Bearer " + token
-        req = Request("http://127.0.0.1:" + str(self.portmap["synapse"]) + path, data=json.dumps(data).encode() if data is not None else None, headers=headers, method=method)
+        req = Request("http://127.0.0.1:" + str(self.portmap["synapse"] if port is None else port) + path, data=json.dumps(data).encode() if data is not None else None, headers=headers, method=method)
         try:
             with urlopen(req, timeout=10) as response:
                 return json.load(response)
@@ -222,10 +222,10 @@ if not os.path.exists(path):
                 return result
             raise RuntimeError("Synapse API request failed (HTTP {})".format(error.code)) from None
 
-    def wait_synapse(self):
+    def wait_synapse(self, gateway=False):
         for _ in range(90):
             try:
-                self.http("/_matrix/client/versions")
+                self.http("/_matrix/client/versions", port=self.portmap["gateway" if gateway else "synapse"])
                 return
             except (OSError, URLError, RuntimeError):
                 time.sleep(2)
@@ -403,6 +403,11 @@ if not os.path.exists(path):
                 for name in running:
                     try:
                         self.systemd("start", "matrix-" + name + ".service")
+                        # Type=exec reports the wrapper started before Podman
+                        # or the HTTP server is ready. Resume bots only after
+                        # their homeserver and internal gateway can serve API calls.
+                        if name == "gateway" and "synapse" in running and "synapse" not in resume_errors:
+                            self.wait_synapse(gateway=True)
                     except RuntimeError:
                         resume_errors.append(name)
                 if timer:

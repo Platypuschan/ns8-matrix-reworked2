@@ -22,6 +22,7 @@ class FakeRuntime(Runtime):
         self.fail_tar = False
         self.fail_start = set()
         self.fail_restore = False
+        self.fail_ready = False
 
     def command(self, args, **kwargs):
         self.events.append(tuple(args))
@@ -53,6 +54,11 @@ class FakeRuntime(Runtime):
 
     def ensure_databases(self):
         self.events.append(("ensure_databases",))
+
+    def wait_synapse(self, gateway=False):
+        self.events.append(("wait_synapse", gateway))
+        if self.fail_ready:
+            raise RuntimeError("readiness failed")
 
     def setup_routes(self, cfg):
         self.events.append(("routes",))
@@ -88,6 +94,20 @@ class Lifecycle(unittest.TestCase):
 
     def test_one_resume_failure_does_not_skip_other_services(self):
         self.runtime.fail_start = {"synapse"}
+        with self.assertRaisesRegex(RuntimeError, "could not resume"):
+            self.runtime.snapshot()
+        for name in self.runtime.running:
+            self.assertIn(("start", "matrix-" + name + ".service"), self.runtime.events)
+
+    def test_backup_resume_waits_for_the_homeserver_before_starting_bots(self):
+        self.runtime.snapshot()
+        events = self.runtime.events
+        ready = events.index(("wait_synapse", True))
+        self.assertLess(events.index(("start", "matrix-gateway.service")), ready)
+        self.assertLess(ready, events.index(("start", "matrix-maubot.service")))
+
+    def test_readiness_failure_still_attempts_all_other_resumes(self):
+        self.runtime.fail_ready = True
         with self.assertRaisesRegex(RuntimeError, "could not resume"):
             self.runtime.snapshot()
         for name in self.runtime.running:

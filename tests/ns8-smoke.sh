@@ -67,6 +67,14 @@ curl -fsS "http://127.0.0.1:$ketesa_port/" > /dev/null
 curl -fsS "http://127.0.0.1:$ketesa_port/config.json" | jq -e '.restrictBaseUrl == "https://matrix.example.test"' > /dev/null
 echo 'maubot and Ketesa HTTP servers passed'
 
+wait_maubot() {
+    for attempt in {1..60}; do
+        if curl -fsS "http://127.0.0.1:$maubot_port/_matrix/maubot/" > /dev/null; then return; fi
+        sleep 2
+    done
+    curl -fsS "http://127.0.0.1:$maubot_port/_matrix/maubot/" > /dev/null
+}
+
 if action configure-module "$(jq '.extensions.telegram={enabled:true}' "$work/extensions.json")" > "$work/invalid.json" 2>/dev/null; then
     echo 'Telegram accepted missing API credentials' >&2
     exit 1
@@ -119,11 +127,13 @@ runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -v O
 runagent -m "$module" podman exec matrix-maubot sh -c 'printf before > /data/plugins/ns8-backup-probe.txt'
 signing_before="$(runagent -m "$module" podman exec matrix-synapse sha256sum /data/signing.key | cut -d' ' -f1)"
 runagent -m "$module" module-dump-state
+wait_maubot
 runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -v ON_ERROR_STOP=1 -c 'UPDATE ns8_backup_probe SET value=$$after$$;' > /dev/null
 runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -v ON_ERROR_STOP=1 -c 'CREATE TABLE ns8_after_backup_probe(value text);' > /dev/null
 runagent -m "$module" podman exec matrix-maubot sh -c 'printf after > /data/plugins/ns8-backup-probe.txt'
 runagent -m "$module" podman exec matrix-maubot sh -c 'printf after > /data/plugins/ns8-after-backup-probe.txt'
 runagent -m "$module" matrixctl restore > "$work/restore.json"
+wait_maubot
 value="$(runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -Atc 'SELECT value FROM ns8_backup_probe;')"
 [[ "$value" == before ]]
 [[ "$(runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -Atc "SELECT to_regclass('ns8_after_backup_probe') IS NULL;")" == t ]]
