@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "imageroot/pypkg"))
 import matrix_config as m
 from matrix_runtime import Runtime
 
-ENV = {"TCP_PORTS": ",".join(str(x) for x in range(20000, 20020)), "UDP_PORTS": ",".join(str(x) for x in range(21000, 21066)), "MODULE_ID": "matrix-reworked21"}
+ENV = {"TCP_PORTS_RANGE": "20000-20019", "UDP_PORTS_RANGE": "21000-21065", "MODULE_ID": "matrix-reworked21"}
 
 
 def configured():
@@ -74,9 +74,16 @@ class Configuration(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "public_ip"):
             m.validate(cfg)
         with self.assertRaises(ValueError):
-            m.ports(dict(ENV, TCP_PORTS="20000"))
+            m.ports(dict(ENV, TCP_PORTS_RANGE="20000-20000"))
         with self.assertRaises(ValueError):
-            m.ports(dict(ENV, UDP_PORTS=ENV["UDP_PORTS"].replace("21003", "22000")))
+            m.ports(dict(ENV, UDP_PORTS_RANGE="21000-22000"))
+
+    def test_ns8_range_environment_matches_explicit_port_lists(self):
+        lists = {"TCP_PORTS": ",".join(str(x) for x in range(20000, 20020)),
+                 "UDP_PORTS": ",".join(str(x) for x in range(21000, 21066))}
+        self.assertEqual(m.ports(lists), self.portmap)
+        with self.assertRaises(ValueError):
+            m.ports(dict(lists, UDP_PORTS=lists["UDP_PORTS"].replace("21003", "22000")))
 
     def test_web_hosts_do_not_silently_override_each_other(self):
         cfg = configured()
@@ -192,6 +199,12 @@ class Configuration(unittest.TestCase):
         for name in m.enabled_services(cfg):
             plan = runtime.container_plan(name)
             self.assertNotIn(self.values["postgres"], " ".join(plan))
+            if name == "synapse":
+                self.assertIn("UID=0", plan)
+                self.assertIn("GID=0", plan)
+            if name in ("discord", "telegram", "whatsapp", "signal", "steam"):
+                self.assertIn("--entrypoint", plan)
+                self.assertEqual(plan[plan.index("--entrypoint") + 1], "/app/steam" if name == "steam" else "/usr/bin/mautrix-" + name)
             if name not in ("turn", "postmoogle", "livekit"):
                 for i, arg in enumerate(plan):
                     if arg == "--publish":

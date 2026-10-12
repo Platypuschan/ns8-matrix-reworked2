@@ -127,7 +127,15 @@ def validate(request, old=None):
 def ports(environ):
     def get(name, count):
         try:
-            result = [int(v) for v in environ.get(name, "").split(",")]
+            # NS8 only provides the comma-separated form for up to eight
+            # ports. Larger allocations are exposed as inclusive ranges.
+            if environ.get(name + "_RANGE"):
+                first, last = (int(v) for v in environ[name + "_RANGE"].split("-"))
+                if last - first + 1 != count or first < 1024 or last > 65535:
+                    raise ValueError("Invalid allocated range")
+                result = list(range(first, last + 1))
+            else:
+                result = [int(v) for v in environ.get(name, "").split(",")]
         except ValueError:
             raise ValueError(name + ": NS8 did not allocate the required ports") from None
         if len(result) != count or len(set(result)) != count or any(v < 1024 or v > 65535 for v in result):

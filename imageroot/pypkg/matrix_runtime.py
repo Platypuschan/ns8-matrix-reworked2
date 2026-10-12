@@ -92,7 +92,10 @@ class Runtime:
         elif name == "synapse":
             mount(gen / "synapse", "/config")
             data("/data")
-            args += ["--env", "SYNAPSE_CONFIG_PATH=/config/homeserver.yaml"]
+            # The upstream entrypoint defaults to UID 991 even with --user 0.
+            # Namespace UID 0 maps to the unprivileged NS8 module user, which
+            # owns the private configuration and signing key.
+            args += ["--env", "UID=0", "--env", "GID=0", "--env", "SYNAPSE_CONFIG_PATH=/config/homeserver.yaml"]
             publish(self.portmap["synapse"], 8008)
         elif name == "gateway":
             mount(gen / "nginx.conf", "/etc/nginx/conf.d/default.conf")
@@ -106,9 +109,13 @@ class Runtime:
             mount(gen / name / "registration.yaml", "/app/config/registration.yaml" if name == "steam" else "/data/registration.yaml")
             publish(self.portmap[name], 8080)
             if name == "steam":
-                args += ["--env", "REGISTRATION_FILE=/app/config/registration.yaml"]
+                args += ["--entrypoint", "/app/steam"]
                 tail = ["-c", "/app/config/config.yaml", "-r", "/app/config/registration.yaml", "--no-update"]
             else:
+                # These images have a default CMD rather than ENTRYPOINT.
+                # Their wrapper also edits config files and switches UID;
+                # launch the bridge against the complete NS8-managed config.
+                args += ["--entrypoint", "/usr/bin/mautrix-" + name, "--workdir", "/data"]
                 tail = ["-c", "/data/config.yaml", "-r", "/data/registration.yaml", "--no-update"]
         elif name == "heisenbridge":
             data("/config")
