@@ -22,7 +22,7 @@ PREFIXES = {k: k + "_" for k in BRIDGES}
 PREFIXES["heisenbridge"] = "hbirc_"
 TCP_NAMES = ("gateway", "element", "ketesa", "maubot", "hookshot", "buscarron", "jwt", "livekit", "turn", "livekit_tcp", "postmoogle", "postgres", "synapse", "discord", "telegram", "whatsapp", "signal", "heisenbridge", "hookshot_as", "steam")
 HOST_EXTENSIONS = ("ketesa", "maubot", "hookshot", "buscarron")
-RESERVED_SYNAPSE = {"server_name", "public_baseurl", "serve_client_wellknown", "listeners", "database", "media_store_path", "signing_key_path", "log_config", "app_service_config_files", "modules", "password_providers", "password_config", "enable_registration", "registration_requires_token", "enable_registration_without_verification", "registration_shared_secret", "macaroon_secret_key", "form_secret", "turn_uris", "turn_shared_secret", "matrix_rtc", "extra_well_known_client_content"}
+RESERVED_SYNAPSE = {"server_name", "public_baseurl", "listeners", "database", "media_store_path", "signing_key_path", "log_config", "app_service_config_files", "modules", "password_providers", "password_config", "enable_registration", "registration_requires_token", "enable_registration_without_verification", "registration_shared_secret", "macaroon_secret_key", "form_secret", "turn_uris", "turn_shared_secret", "matrix_rtc", "extra_well_known_client_content"}
 
 
 def defaults():
@@ -286,6 +286,9 @@ def extension_config(name, config, values, portmap):
     elif name in ("postmoogle", "buscarron"):
         prefix = name.upper() + "_"
         result = dict(extra)
+        # This internal gateway virtual host also keeps login discovery on the
+        # internal URL used by these bots' SDK, without changing public clients.
+        url = "http://host.containers.internal:" + str(portmap["gateway"])
         result.update({prefix + "HOMESERVER": url, prefix + "LOGIN": name, prefix + "PASSWORD": values[name + "_password"], prefix + "DB_DIALECT": "postgres", prefix + "DB_DSN": db_url(name, values, portmap)})
         if name == "postmoogle":
             result.update(POSTMOOGLE_DOMAINS=extra.get("POSTMOOGLE_DOMAINS", server), POSTMOOGLE_PORT="2525", POSTMOOGLE_TLS_PORT="0", POSTMOOGLE_DATA_SECRET=values["postmoogle_data"])
@@ -305,9 +308,6 @@ def synapse_config(config, values, portmap, ldap=None, smtp=None):
     server = config["server_name"]
     result = {
         "server_name": server, "public_baseurl": "https://" + config["synapse_domain_name"] + "/",
-        # The gateway serves public discovery. Login responses must not redirect
-        # internal bot clients away from their managed loopback connection.
-        "serve_client_wellknown": False,
         "pid_file": "/data/homeserver.pid", "report_stats": False,
         "listeners": [{"port": 8008, "type": "http", "tls": False, "bind_addresses": ["0.0.0.0"], "x_forwarded": True,
                        "resources": [{"names": ["client", "federation" if config["federation"] else "openid"], "compress": False}]}],
@@ -418,7 +418,7 @@ def gateway_config(config, well_known, portmap):
     if config["extensions"]["steam"]["enabled"]:
         extra += "\nlocation /steam/_mautrix/publicmedia/ { proxy_pass http://host.containers.internal:%d/_mautrix/publicmedia/; }" % portmap["steam"]
     return """server {
-      listen 8080;
+      listen 8080 default_server;
       server_name _;
       client_max_body_size 50m;
       location = /.well-known/matrix/client { default_type application/json; add_header Access-Control-Allow-Origin *; return 200 '%s'; }
@@ -432,7 +432,22 @@ def gateway_config(config, well_known, portmap):
         proxy_read_timeout 600s;
       }
     }
-    """ % (client, server, extra, portmap["synapse"])
+    server {
+      listen 8080;
+      server_name host.containers.internal;
+      client_max_body_size 50m;
+      location ~ ^/_matrix/client/(v3|r0|v1)/login$ {
+        proxy_pass http://host.containers.internal:%s;
+        proxy_set_header Accept-Encoding "";
+        sub_filter_types application/json;
+        sub_filter '"https://%s/"' '"http://host.containers.internal:%s"';
+      }
+      location / {
+        proxy_pass http://host.containers.internal:%s;
+        proxy_read_timeout 600s;
+      }
+    }
+    """ % (client, server, extra, portmap["synapse"], portmap["synapse"], config["synapse_domain_name"], portmap["gateway"], portmap["synapse"])
 
 
 def enabled_services(config):

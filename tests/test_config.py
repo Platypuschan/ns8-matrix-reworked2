@@ -169,7 +169,10 @@ class Configuration(unittest.TestCase):
         cfg = everything()
         for name in m.MAUTRIX_BRIDGES:
             self.assertNotEqual(m.registration(name, cfg, self.values, self.portmap)["sender_localpart"], m.BOT_NAMES[name])
-        self.assertFalse(m.synapse_config(cfg, self.values, self.portmap)["serve_client_wellknown"])
+        self.assertEqual(m.synapse_config(cfg, self.values, self.portmap)["public_baseurl"], "https://matrix.example.com/")
+        for name in ("postmoogle", "buscarron"):
+            self.assertEqual(m.extension_config(name, cfg, self.values, self.portmap)[name.upper() + "_HOMESERVER"],
+                             "http://host.containers.internal:" + str(self.portmap["gateway"]))
         steam = m.extension_config("steam", cfg, self.values, self.portmap)
         self.assertEqual(steam["appservice"]["public_address"], "https://matrix.example.com/steam")
         self.assertEqual(steam["public_media"]["signing_key"], self.values["steam_media"])

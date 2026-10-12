@@ -36,7 +36,11 @@ curl -fsS "$base/.well-known/matrix/client" | jq -e '."m.homeserver".base_url ==
 action manage-recovery-admin > "$work/recovery.json"
 jq '{type:"m.login.password", identifier:{type:"m.id.user",user:.user},password:.password}' "$work/recovery.json" > "$work/login.json"
 curl -fsS -H 'Content-Type: application/json' --data-binary "@$work/login.json" "$base/_matrix/client/v3/login" > "$work/login-result.json"
-jq -e '.well_known == null' "$work/login-result.json" > /dev/null
+jq -e '.well_known."m.homeserver".base_url == "https://matrix.example.test/"' "$work/login-result.json" > /dev/null
+curl -fsS -H 'Host: host.containers.internal' -H 'Content-Type: application/json' \
+    --data-binary "@$work/login.json" "$base/_matrix/client/v3/login" > "$work/internal-login-result.json"
+jq -e --arg base "http://host.containers.internal:$port" \
+    '.well_known."m.homeserver".base_url == $base' "$work/internal-login-result.json" > /dev/null
 token="$(jq -r '.access_token' "$work/login-result.json")"
 [[ "$token" != null && -n "$token" ]]
 echo 'Synapse API, discovery and local administrator login passed'
