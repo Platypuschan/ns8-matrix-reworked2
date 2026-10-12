@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import subprocess
@@ -266,6 +267,17 @@ if not os.path.exists(path):
         smtp = agent.get_smarthost_settings(agent.redis_connect(use_replica=True)) if cfg["use_smarthost"] else None
         return ldap, smtp
 
+    def remove_firewall(self):
+        import agent.tasks
+        name = self.environ["MODULE_ID"]
+        result = agent.tasks.run(
+            agent_id="node/" + self.environ["NODE_ID"], action="remove-public-service",
+            data={"service": name}, extra={"isNotificationHidden": True})
+        # Core's remove action fails if no public ports were ever enabled.
+        # Treat only this service's explicit not-found result as success.
+        missing = re.search(r"\bINVALID_SERVICE:\s*" + re.escape(name) + r"(?![\w.-])", result.get("error", ""))
+        return result["exit_code"] == 0 or bool(missing)
+
     def setup_routes(self, cfg):
         import agent
         import agent.tasks
@@ -285,7 +297,7 @@ if not os.path.exists(path):
             if result["exit_code"]:
                 raise RuntimeError("Traefik route operation failed: " + name)
         public = configlib.firewall_ports(cfg, self.portmap)
-        ok = agent.add_public_service(self.environ["MODULE_ID"], public, replace_ports=True) if public else agent.remove_public_service(self.environ["MODULE_ID"])
+        ok = agent.add_public_service(self.environ["MODULE_ID"], public, replace_ports=True) if public else self.remove_firewall()
         if ok is False:
             raise RuntimeError("NS8 firewall update failed")
 
@@ -460,7 +472,7 @@ if not os.path.exists(path):
         errors = []
         # Firewall cleanup still runs if Traefik or one of the routes is unavailable.
         try:
-            if agent.remove_public_service(self.environ["MODULE_ID"]) is False:
+            if self.remove_firewall() is False:
                 errors.append("firewall")
         except Exception:
             errors.append("firewall")

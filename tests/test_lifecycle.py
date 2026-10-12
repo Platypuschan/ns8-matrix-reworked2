@@ -4,8 +4,9 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import ModuleType
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from test_config import ENV, configured
 from matrix_runtime import Runtime
@@ -164,6 +165,21 @@ class Lifecycle(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "API failed"):
                 self.runtime.recovery(rotate=True)
         self.assertEqual(m.secret_store(self.state)["recovery_admin"], self.values["recovery_admin"])
+
+    def test_firewall_removal_accepts_only_its_own_missing_service(self):
+        agent = ModuleType("agent")
+        tasks = ModuleType("agent.tasks")
+        agent.tasks = tasks
+        self.runtime.environ["NODE_ID"] = "1"
+        cases = [(0, "", True), (1, "Error: INVALID_SERVICE: matrix-reworked21\n", True),
+                 (1, "Error: INVALID_SERVICE: matrix-reworked21-other", False),
+                 (1, "permission denied", False)]
+        for code, error, expected in cases:
+            with self.subTest(error=error):
+                tasks.run = Mock(return_value={"exit_code": code, "error": error})
+                with patch.dict(sys.modules, {"agent": agent, "agent.tasks": tasks}):
+                    self.assertEqual(self.runtime.remove_firewall(), expected)
+                self.assertEqual(tasks.run.call_args.kwargs["data"], {"service": "matrix-reworked21"})
 
 
 if __name__ == "__main__":
