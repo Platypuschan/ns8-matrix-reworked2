@@ -340,7 +340,9 @@ export default {
       this.busy = true;
       this.error = "";
       try {
-        const result = await this.matrixTask("get-extension-config", { name });
+        const result = await this.matrixTask("manage-extension-config", {
+          name,
+        });
         const examples = {
           telegram: { network: { api_id: 0, api_hash: "" } },
           draupnir: { managementRoom: "!room:" + this.config.server_name },
@@ -401,7 +403,7 @@ export default {
       if (!event.target.open || this.recovery) return;
       this.busy = true;
       try {
-        this.recovery = await this.matrixTask("get-recovery-admin");
+        this.recovery = await this.matrixTask("manage-recovery-admin");
       } catch (error) {
         this.error = error.message;
       } finally {

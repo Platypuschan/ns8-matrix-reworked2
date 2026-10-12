@@ -174,7 +174,7 @@ def write(path, data, mode=0o600):
 def secret_store(state):
     path = Path(state) / "secrets.json"
     values = json.loads(path.read_text()) if path.exists() else {}
-    for key in ("postgres", "registration", "macaroon", "form", "shared_auth", "double_puppet", "double_puppet_hs", "turn", "livekit_key", "livekit_secret", "recovery_admin", "maubot_admin", "maubot_signing", "postmoogle_data"):
+    for key in ("postgres", "registration", "macaroon", "form", "shared_auth", "double_puppet", "double_puppet_hs", "turn", "livekit_key", "livekit_secret", "recovery_admin", "maubot_admin", "maubot_signing", "maubot_crypto", "postmoogle_data"):
         values.setdefault(key, secrets.token_urlsafe(48))
     for name in DATABASES:
         values.setdefault("db_" + name, secrets.token_urlsafe(48))
@@ -253,9 +253,14 @@ def extension_config(name, config, values, portmap):
         result["generic"] = merge(result.get("generic", {}), {"enabled": True, "urlPrefix": "https://" + config["extensions"][name]["host"] + "/webhook/", "userIdPrefix": "_webhooks_", "allowJsTransformationFunctions": False})
     elif name == "maubot":
         result["database"] = "sqlite:////data/maubot.db"
+        result["crypto_db_pickle_key"] = values["maubot_crypto"]
+        result["plugin_directories"] = {"upload": "/data/plugins", "load": ["/data/plugins"], "trash": "/data/trash"}
+        result["plugin_databases"] = merge(result.get("plugin_databases", {}), {"sqlite": "/data/dbs"})
+        if result["plugin_databases"].get("postgres") == "default":
+            result["plugin_databases"]["postgres"] = None
         result["admins"] = {"root": "", "recovery-admin": values["maubot_admin"]}
         result["homeservers"] = {server: {"url": "https://" + config["synapse_domain_name"], "secret": values["registration"]}}
-        result["server"] = merge(result.get("server", {}), {"hostname": "0.0.0.0", "port": 29316, "public_url": "https://" + config["extensions"][name]["host"], "ui_base_path": "/_matrix/maubot", "plugin_base_path": "/_matrix/maubot/plugin/", "unshared_secret": values["maubot_signing"]})
+        result["server"] = merge(result.get("server", {}), {"hostname": "0.0.0.0", "port": 29316, "public_url": "https://" + config["extensions"][name]["host"], "ui_base_path": "/_matrix/maubot", "plugin_base_path": "/_matrix/maubot/plugin/", "override_resource_path": "/opt/maubot/frontend", "unshared_secret": values["maubot_signing"]})
     elif name == "draupnir":
         result.update(homeserverUrl=url, rawHomeserverUrl=url, dataPath="/data", accessToken=extra.get("accessToken") or values.get("draupnir_token", ""))
     elif name == "ketesa":

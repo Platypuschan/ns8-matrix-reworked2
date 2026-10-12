@@ -2,7 +2,7 @@
 
 Die Grundimplementierung enthält Synapse, Element Web, PostgreSQL, LDAP/AD, Shared Secret Auth, die ausgewählten Bridges/Bots, Ketesa, coturn/MatrixRTC, NS8-UI, Backup/Restore und Wartung.
 
-Bestanden: 31 Unit-Tests, Python-/JSON-/Shell-Prüfung, UI-Lint und UI-Produktionsbuild. Die Tests überprüfen unter anderem Token-/Namespace-Isolation, LDAP/SMTP-Konfiguration, die NS8-Portbereichsvariablen, Portwechsel, Idempotenz, Firewall-Deaktivierung, Snapshot-Fehlerbehandlung, vollständigen Datenersatz beim Restore und die sichere Speicherung bei erfolgreicher oder fehlgeschlagener Passwortrotation.
+Bestanden: 32 Unit-Tests, Python-/JSON-/Shell-Prüfung, UI-Lint und UI-Produktionsbuild. Die Tests überprüfen unter anderem Token-/Namespace-Isolation, LDAP/SMTP-Konfiguration, die NS8-Portbereichsvariablen, Portwechsel, Idempotenz, Firewall-Deaktivierung, maubot-Defaults für das verwendete Image, Snapshot-Fehlerbehandlung, vollständigen Datenersatz beim Restore und die sichere Speicherung bei erfolgreicher oder fehlgeschlagener Passwortrotation.
 
 Noch offen: reale Image-Builds, NS8-QEMU-Integrationstests, Remote-Konto-Logins und Anrufe über NAT. Die Workflows und Tests dafür sind vorbereitet.
 

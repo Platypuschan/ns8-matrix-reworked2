@@ -111,6 +111,18 @@ class Configuration(unittest.TestCase):
             if p.suffix in (".yaml", ".json", ".config"):
                 json.loads(p.read_text())
 
+    def test_maubot_defaults_match_the_sqlite_backend_and_pinned_image(self):
+        cfg = everything()
+        result = m.extension_config("maubot", cfg, self.values, self.portmap)
+        self.assertEqual(result["crypto_database"], "default")
+        self.assertIsNone(result["plugin_databases"]["postgres"])
+        self.assertEqual(result["plugin_databases"]["sqlite"], "/data/dbs")
+        self.assertEqual(result["plugin_directories"]["load"], ["/data/plugins"])
+        self.assertNotEqual(result["crypto_db_pickle_key"], "mau.crypto")
+        self.assertEqual(result["crypto_db_pickle_key"], m.secret_store(self.state)["maubot_crypto"])
+        cfg["extensions"]["maubot"]["config"] = {"plugin_databases": {"postgres": "default"}}
+        self.assertIsNone(m.extension_config("maubot", cfg, self.values, self.portmap)["plugin_databases"]["postgres"])
+
     def test_tokens_are_distinct_private_and_survive_reconfiguration(self):
         self.assertEqual(self.values, m.secret_store(self.state))
         tokens = [self.values[k + "_as"] for k in m.BRIDGES] + [self.values[k + "_hs"] for k in m.BRIDGES]

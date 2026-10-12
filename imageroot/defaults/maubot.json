@@ -1,35 +1,36 @@
 {
-  "database": "sqlite:////data/maubot.db",
-  "crypto_database": {
-    "type": "default"
-  },
+  "database": "sqlite:maubot.db",
+  "crypto_db_pickle_key": "mau.crypto",
+  "crypto_database": "default",
   "database_opts": {
     "min_size": 1,
     "max_size": 10
   },
   "plugin_directories": {
-    "upload": "/data/plugins",
+    "upload": "./plugins",
     "load": [
-      "/data/plugins"
+      "./plugins"
     ],
-    "trash": "/data/trash"
+    "trash": "./trash"
   },
   "plugin_databases": {
-    "sqlite": "/data/dbs",
-    "postgres": "default"
+    "sqlite": "./plugins",
+    "postgres": null,
+    "postgres_max_conns_per_plugin": 3,
+    "postgres_opts": {}
   },
   "server": {
     "hostname": "0.0.0.0",
     "port": 29316,
-    "public_url": "https://None/_matrix/maubot",
-    "ui_base_path": "/",
-    "plugin_base_path": "/plugin/",
-    "override_resource_path": "/opt/maubot/frontend",
+    "public_url": "https://example.com",
+    "ui_base_path": "/_matrix/maubot",
+    "plugin_base_path": "/_matrix/maubot/plugin/",
+    "override_resource_path": false,
     "unshared_secret": "generate"
   },
   "homeservers": {
-    "example.com": {
-      "url": null,
+    "matrix.org": {
+      "url": "https://matrix-client.matrix.org",
       "secret": null
     }
   },
@@ -60,6 +61,13 @@
       }
     },
     "handlers": {
+      "file": {
+        "class": "logging.handlers.RotatingFileHandler",
+        "formatter": "normal",
+        "filename": "./maubot.log",
+        "maxBytes": 10485760,
+        "backupCount": 10
+      },
       "console": {
         "class": "logging.StreamHandler",
         "formatter": "colored"
@@ -67,18 +75,19 @@
     },
     "loggers": {
       "maubot": {
-        "level": "WARNING"
+        "level": "DEBUG"
       },
       "mau": {
-        "level": "WARNING"
+        "level": "DEBUG"
       },
       "aiohttp": {
-        "level": "WARNING"
+        "level": "INFO"
       }
     },
     "root": {
-      "level": "WARNING",
+      "level": "DEBUG",
       "handlers": [
+        "file",
         "console"
       ]
     }

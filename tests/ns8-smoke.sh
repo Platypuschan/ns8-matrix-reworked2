@@ -33,7 +33,7 @@ base="http://127.0.0.1:$port"
 curl -fsS "$base/_matrix/client/versions" | jq -e '.versions | length > 0' >/dev/null
 curl -fsS "$base/.well-known/matrix/server" | jq -e '."m.server" == "matrix.example.test:443"' >/dev/null
 curl -fsS "$base/.well-known/matrix/client" | jq -e '."m.homeserver".base_url == "https://matrix.example.test"' >/dev/null
-action get-recovery-admin > "$work/recovery.json"
+action manage-recovery-admin > "$work/recovery.json"
 jq '{type:"m.login.password", identifier:{type:"m.id.user",user:.user},password:.password}' "$work/recovery.json" > "$work/login.json"
 curl -fsS -H 'Content-Type: application/json' --data-binary "@$work/login.json" "$base/_matrix/client/v3/login" > "$work/login-result.json"
 token="$(jq -r '.access_token' "$work/login-result.json")"

@@ -40,7 +40,7 @@ Open the application settings and set:
 
 When the identity domain differs from the Synapse domain, the module adds only `/.well-known/matrix` routes to the identity domain. Federation is delegated to HTTPS port 443. Existing clients can discover the server from their Matrix user ID.
 
-The **Recovery administrator** section reveals a generated local administrator password. It also shows the separate maubot management password when maubot is enabled. This account works independently of LDAP. Rotating its Matrix password logs out its devices.
+The **Recovery administrator** section reveals a generated local administrator password. It also shows the separate maubot management password when maubot is enabled. Only NS8 application owners can retrieve these credentials or the private extension settings. This account works independently of LDAP. Rotating its Matrix password logs out its devices.
 
 ## Extensions
 
