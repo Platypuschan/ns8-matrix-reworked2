@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.source="https://github.com/Platypuschan/ns8-matri
 USER root
 # Shared secret auth 2.0.2, upstream commit 6e959f3073d9a3d6a4bc65215f186d3b519dec84.
 # Locate the active interpreter rather than relying on the base image's Python minor version.
-RUN python -m pip install --no-cache-dir matrix-synapse-ldap3==0.3.0
+RUN python -m pip install --no-cache-dir matrix-synapse-ldap3==0.4.0
 COPY shared_secret_authenticator.py /opt/shared-secret-auth/shared_secret_authenticator.py
 ENV PYTHONPATH=/opt/shared-secret-auth
 RUN python -c "import shared_secret_authenticator, ldap_auth_provider"
