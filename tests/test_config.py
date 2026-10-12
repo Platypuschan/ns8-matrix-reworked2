@@ -68,6 +68,18 @@ class Configuration(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, name):
                 m.validate(cfg)
 
+    def test_draupnir_accepts_modern_room_ids_legacy_ids_and_aliases(self):
+        cfg = configured()
+        cfg["extensions"]["draupnir"]["enabled"] = True
+        for room in ("!q3NlYJ-XlWZmvHgKrqZpNPTqEzqh_b1GKUIYvMSPi74", "!moderation:example.com", "#moderation:example.com"):
+            with self.subTest(room=room):
+                cfg["extensions"]["draupnir"]["config"]["managementRoom"] = room
+                self.assertEqual(m.validate(cfg)["extensions"]["draupnir"]["config"]["managementRoom"], room)
+        for room in (None, "", "!", "!:example.com", "!moderation:", "#moderation", "!room with space", "@alice:example.com"):
+            with self.subTest(room=room), self.assertRaisesRegex(ValueError, "managementRoom"):
+                cfg["extensions"]["draupnir"]["config"]["managementRoom"] = room
+                m.validate(cfg)
+
     def test_media_ip_and_allocated_port_ranges_are_validated(self):
         cfg = configured()
         cfg["turn"].update(enabled=True, domain_name="turn.example.com")

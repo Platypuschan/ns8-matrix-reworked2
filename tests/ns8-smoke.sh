@@ -73,6 +73,8 @@ echo 'Invalid extension configuration did not replace the working settings'
 curl -fsS -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
     --data '{"name":"NS8 moderation test"}' "$base/_matrix/client/v3/createRoom" > "$work/room.json"
 room="$(jq -r '.room_id' "$work/room.json")"
+room_version="$(curl -fsS -H "Authorization: Bearer $token" "$base/_matrix/client/v3/rooms/$room/state/m.room.create" | jq -r '.room_version // "1"')"
+echo "Created moderation room $room (version $room_version)"
 curl -fsS -H "Authorization: Bearer $token" \
     "$base/_matrix/client/v3/rooms/$room/state/m.room.power_levels" | \
     jq '.users["@draupnir:example.test"]=100' > "$work/power-levels.json"

@@ -106,7 +106,8 @@ def validate(request, old=None):
                 network = part["config"].get("network", {})
                 if not isinstance(network, dict) or not isinstance(network.get("api_id"), int) or isinstance(network.get("api_id"), bool) or network["api_id"] <= 0 or not re.fullmatch(r"[a-fA-F0-9]{32}", str(network.get("api_hash", ""))):
                     raise ValueError("telegram.config.network: api_id and api_hash from my.telegram.org are required")
-            if name == "draupnir" and not re.fullmatch(r"[!#][^:\s]+:[^\s]+", str(part["config"].get("managementRoom", ""))):
+            # Room version 12 IDs omit the server name; aliases still require it.
+            if name == "draupnir" and not re.fullmatch(r"(?:![^:\s]+(?::[^\s]+)?|#[^:\s]+:[^\s]+)", str(part["config"].get("managementRoom", ""))):
                 raise ValueError("draupnir.config.managementRoom: a management room ID or alias is required")
             if name == "buscarron" and not part["config"].get("BUSCARRON_LIST"):
                 raise ValueError("buscarron.config.BUSCARRON_LIST: configure at least one form")
