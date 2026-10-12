@@ -36,6 +36,7 @@ curl -fsS "$base/.well-known/matrix/client" | jq -e '."m.homeserver".base_url ==
 action manage-recovery-admin > "$work/recovery.json"
 jq '{type:"m.login.password", identifier:{type:"m.id.user",user:.user},password:.password}' "$work/recovery.json" > "$work/login.json"
 curl -fsS -H 'Content-Type: application/json' --data-binary "@$work/login.json" "$base/_matrix/client/v3/login" > "$work/login-result.json"
+jq -e '.well_known == null' "$work/login-result.json" > /dev/null
 token="$(jq -r '.access_token' "$work/login-result.json")"
 [[ "$token" != null && -n "$token" ]]
 echo 'Synapse API, discovery and local administrator login passed'
@@ -91,14 +92,21 @@ jq --arg room "$room" '. + {bridge_admin:"@recovery-admin:example.test"} |
     .extensions.steam={enabled:true} |
     .extensions.postmoogle={enabled:true,config:{POSTMOOGLE_DOMAINS:"example.test",POSTMOOGLE_TLS_REQUIRED:false}} |
     .extensions.buscarron={enabled:true,host:"forms.example.test",config:{BUSCARRON_LIST:"contact",BUSCARRON_CONTACT_ROOM:$room}} |
-    .extensions.draupnir={enabled:true,config:{managementRoom:$room,initialManager:"@recovery-admin:example.test"}}' \
+    .extensions.draupnir={enabled:true,config:{managementRoom:$room}}' \
     "$work/extensions.json" > "$work/all.json"
 action configure-module "$(cat "$work/all.json")" > "$work/all-result.json"
 curl -fsS -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
     --data '{"user_id":"@draupnir:example.test"}' "$base/_synapse/admin/v1/join/$room" > /dev/null
 sleep 10
 for service in discord telegram whatsapp signal heisenbridge hookshot steam postmoogle buscarron draupnir; do
-    [[ "$(runagent -m "$module" podman inspect "matrix-$service" --format '{{.State.Running}}')" == true ]]
+    echo "Checking matrix-$service"
+    [[ "$(runagent -m "$module" podman inspect --type container "matrix-$service" --format '{{.State.Running}}')" == true ]]
+done
+for service in discord telegram whatsapp signal steam; do
+    as_token="$(runagent -m "$module" podman exec matrix-synapse cat "/config/registrations/$service.yaml" | jq -r .as_token)"
+    curl -fsS --get -H "Authorization: Bearer $as_token" \
+        --data-urlencode "user_id=@${service}bot:example.test" --data-urlencode timeout=0 \
+        "$base/_matrix/client/v3/sync" | jq -e '.next_batch != null' > /dev/null
 done
 echo 'All bridge and bot containers started with their generated registrations/configuration'
 

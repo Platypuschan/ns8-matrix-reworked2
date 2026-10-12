@@ -13,6 +13,7 @@ from urllib.parse import quote
 ROOT = Path(__file__).resolve().parents[1]
 IMAGES = json.loads((ROOT / "images.json").read_text())
 BRIDGES = ("discord", "telegram", "whatsapp", "signal", "heisenbridge", "hookshot", "steam")
+MAUTRIX_BRIDGES = ("discord", "telegram", "whatsapp", "signal", "steam")
 EXTENSIONS = BRIDGES + ("postmoogle", "maubot", "draupnir", "buscarron", "ketesa")
 DATABASES = ("synapse", "discord", "telegram", "whatsapp", "signal", "steam", "postmoogle", "buscarron")
 BOT_NAMES = {k: k + "bot" for k in BRIDGES}
@@ -21,7 +22,7 @@ PREFIXES = {k: k + "_" for k in BRIDGES}
 PREFIXES["heisenbridge"] = "hbirc_"
 TCP_NAMES = ("gateway", "element", "ketesa", "maubot", "hookshot", "buscarron", "jwt", "livekit", "turn", "livekit_tcp", "postmoogle", "postgres", "synapse", "discord", "telegram", "whatsapp", "signal", "heisenbridge", "hookshot_as", "steam")
 HOST_EXTENSIONS = ("ketesa", "maubot", "hookshot", "buscarron")
-RESERVED_SYNAPSE = {"server_name", "public_baseurl", "listeners", "database", "media_store_path", "signing_key_path", "log_config", "app_service_config_files", "modules", "password_providers", "password_config", "enable_registration", "registration_requires_token", "enable_registration_without_verification", "registration_shared_secret", "macaroon_secret_key", "form_secret", "turn_uris", "turn_shared_secret", "matrix_rtc", "extra_well_known_client_content"}
+RESERVED_SYNAPSE = {"server_name", "public_baseurl", "serve_client_wellknown", "listeners", "database", "media_store_path", "signing_key_path", "log_config", "app_service_config_files", "modules", "password_providers", "password_config", "enable_registration", "registration_requires_token", "enable_registration_without_verification", "registration_shared_secret", "macaroon_secret_key", "form_secret", "turn_uris", "turn_shared_secret", "matrix_rtc", "extra_well_known_client_content"}
 
 
 def defaults():
@@ -109,6 +110,12 @@ def validate(request, old=None):
             # Room version 12 IDs omit the server name; aliases still require it.
             if name == "draupnir" and not re.fullmatch(r"(?:![^:\s]+(?::[^\s]+)?|#[^:\s]+:[^\s]+)", str(part["config"].get("managementRoom", ""))):
                 raise ValueError("draupnir.config.managementRoom: a management room ID or alias is required")
+            if name == "draupnir" and part["config"].get("initialManager"):
+                raise ValueError("draupnir.config: managementRoom and initialManager are mutually exclusive")
+            if name == "hookshot" and part["config"].get("encryption") is not None:
+                cache = part["config"].get("cache", {})
+                if not isinstance(part["config"]["encryption"], dict) or not isinstance(cache, dict) or not isinstance(cache.get("redisUri"), str) or not re.match(r"rediss?://[^\s]+$", cache["redisUri"]):
+                    raise ValueError("hookshot.config.encryption: a Redis cache.redisUri is required")
             if name == "buscarron" and not part["config"].get("BUSCARRON_LIST"):
                 raise ValueError("buscarron.config.BUSCARRON_LIST: configure at least one form")
         if name in ("postmoogle", "buscarron"):
@@ -175,8 +182,12 @@ def write(path, data, mode=0o600):
 def secret_store(state):
     path = Path(state) / "secrets.json"
     values = json.loads(path.read_text()) if path.exists() else {}
-    for key in ("postgres", "registration", "macaroon", "form", "shared_auth", "double_puppet", "double_puppet_hs", "turn", "livekit_key", "livekit_secret", "recovery_admin", "maubot_admin", "maubot_signing", "maubot_crypto", "postmoogle_data"):
+    for key in ("postgres", "registration", "macaroon", "form", "shared_auth", "double_puppet", "double_puppet_hs", "turn", "livekit_key", "livekit_secret", "recovery_admin", "maubot_admin", "maubot_signing", "maubot_crypto", "steam_media"):
         values.setdefault(key, secrets.token_urlsafe(48))
+    # Postmoogle uses these bytes directly as an AES key. An older development
+    # build generated 64 bytes, which cannot initialize AES or encrypt any data.
+    if len(values.get("postmoogle_data", "").encode()) not in (16, 24, 32):
+        values["postmoogle_data"] = secrets.token_urlsafe(24)
     for name in DATABASES:
         values.setdefault("db_" + name, secrets.token_urlsafe(48))
     for name in BRIDGES:
@@ -207,12 +218,16 @@ def registration(name, config, values, portmap):
     result = {
         "id": name, "url": "http://host.containers.internal:{}".format(portmap["hookshot_as" if name == "hookshot" else name]),
         "as_token": values[name + "_as"], "hs_token": values[name + "_hs"],
-        "sender_localpart": BOT_NAMES[name], "namespaces": namespaces,
+        # Synapse does not support /sync for the appservice sender itself.
+        # Mautrix's encryption bot must be a different namespace user.
+        "sender_localpart": "ns8-" + name + "-as" if name in MAUTRIX_BRIDGES else BOT_NAMES[name], "namespaces": namespaces,
         "rate_limited": False, "de.sorunome.msc2409.push_ephemeral": True,
         "push_ephemeral": True,
     }
     if name == "hookshot":
         result["namespaces"]["users"].extend({"regex": "@_" + p + "_.*:" + domain + "$", "exclusive": True} for p in ("github", "gitlab", "jira", "feeds", "webhooks"))
+        if config["extensions"][name]["config"].get("encryption") is not None:
+            result["org.matrix.msc3202"] = True
     return result
 
 
@@ -221,7 +236,7 @@ def extension_config(name, config, values, portmap):
     result = merge(stock(name), extra)
     server = config["server_name"]
     url = "http://host.containers.internal:" + str(portmap["synapse"])
-    if name in ("discord", "telegram", "whatsapp", "signal", "steam"):
+    if name in MAUTRIX_BRIDGES:
         result["homeserver"] = merge(result.get("homeserver", {}), {"address": url, "domain": server})
         app = {"address": "http://host.containers.internal:" + str(portmap[name]), "hostname": "0.0.0.0", "port": 8080, "id": name,
                "as_token": values[name + "_as"], "hs_token": values[name + "_hs"], "bot": {"username": BOT_NAMES[name]}}
@@ -243,6 +258,8 @@ def extension_config(name, config, values, portmap):
         result["provisioning"] = merge(result.get("provisioning", {}), {"shared_secret": values[name + "_provisioning"]})
         if name == "steam":
             result["network"]["steam_bridge_path"] = "/app/"
+            result["appservice"]["public_address"] = "https://" + config["synapse_domain_name"] + "/steam"
+            result["public_media"] = merge(result.get("public_media", {}), {"signing_key": values["steam_media"], "path_prefix": "/_mautrix/publicmedia"})
     elif name == "heisenbridge":
         result = registration(name, config, values, portmap)
         result["heisenbridge"] = merge({"displayname": "Heisenbridge", "media_url": "https://" + config["synapse_domain_name"], "media_path": "/heisenbridge/media/{server}/{media_id}/{checksum}{filename}", "media_key": values[name + "_hs"]}, extra.get("heisenbridge", {}))
@@ -288,6 +305,9 @@ def synapse_config(config, values, portmap, ldap=None, smtp=None):
     server = config["server_name"]
     result = {
         "server_name": server, "public_baseurl": "https://" + config["synapse_domain_name"] + "/",
+        # The gateway serves public discovery. Login responses must not redirect
+        # internal bot clients away from their managed loopback connection.
+        "serve_client_wellknown": False,
         "pid_file": "/data/homeserver.pid", "report_stats": False,
         "listeners": [{"port": 8008, "type": "http", "tls": False, "bind_addresses": ["0.0.0.0"], "x_forwarded": True,
                        "resources": [{"names": ["client", "federation" if config["federation"] else "openid"], "compress": False}]}],
@@ -313,7 +333,7 @@ def synapse_config(config, values, portmap, ldap=None, smtp=None):
         # Local management/bot identities must never authenticate with an AD
         # account of the same name, in particular the local server administrator.
         uid = ldapconf["attributes"]["uid"]
-        reserved = ["recovery-admin", "postmoogle", "buscarron", "draupnir", "doublepuppet"] + list(BOT_NAMES.values())
+        reserved = ["recovery-admin", "postmoogle", "buscarron", "draupnir", "doublepuppet"] + list(BOT_NAMES.values()) + ["ns8-" + name + "-as" for name in MAUTRIX_BRIDGES]
         exclusions = "".join("(!({}={}))".format(uid, name) for name in sorted(set(reserved)))
         ldapconf["filter"] = "(&" + exclusions + config["ldap_filter"] + ")"
         result["modules"].append({"module": "ldap_auth_provider.LdapAuthProviderModule", "config": ldapconf})
@@ -325,7 +345,13 @@ def synapse_config(config, values, portmap, ldap=None, smtp=None):
                            "require_transport_security": transport in ("starttls", "tls"), "enable_tls": transport != "none", "force_tls": transport == "tls"}
         if smtp.get("username"):
             result["email"].update(smtp_user=smtp["username"], smtp_pass=smtp.get("password", ""))
-    return merge(result, config["synapse_extra"])
+    result = merge(result, config["synapse_extra"])
+    hookshot = config["extensions"]["hookshot"]
+    if hookshot["enabled"] and hookshot["config"].get("encryption") is not None:
+        result["experimental_features"] = merge(result.get("experimental_features", {}), {
+            "msc2409_to_device_messages_enabled": True, "msc3202_transaction_extensions": True,
+        })
+    return result
 
 
 def render(state, config, values, portmap, ldap=None, smtp=None):
@@ -389,6 +415,8 @@ def gateway_config(config, well_known, portmap):
     extra = ""
     if config["extensions"]["heisenbridge"]["enabled"]:
         extra = "location /heisenbridge/media/ { proxy_pass http://host.containers.internal:%d; }" % portmap["heisenbridge"]
+    if config["extensions"]["steam"]["enabled"]:
+        extra += "\nlocation /steam/_mautrix/publicmedia/ { proxy_pass http://host.containers.internal:%d/_mautrix/publicmedia/; }" % portmap["steam"]
     return """server {
       listen 8080;
       server_name _;

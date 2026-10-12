@@ -79,6 +79,22 @@ class Configuration(unittest.TestCase):
             with self.subTest(room=room), self.assertRaisesRegex(ValueError, "managementRoom"):
                 cfg["extensions"]["draupnir"]["config"]["managementRoom"] = room
                 m.validate(cfg)
+        cfg["extensions"]["draupnir"]["config"] = {"managementRoom": "!moderation:example.com", "initialManager": "@alice:example.com"}
+        with self.assertRaisesRegex(ValueError, "mutually exclusive"):
+            m.validate(cfg)
+
+    def test_hookshot_encryption_requires_redis_and_enables_appservice_extensions(self):
+        cfg = everything()
+        self.assertNotIn("encryption", m.extension_config("hookshot", cfg, self.values, self.portmap))
+        cfg["extensions"]["hookshot"]["config"] = {"encryption": {"storagePath": "/data/encryption"}}
+        with self.assertRaisesRegex(ValueError, "Redis"):
+            m.validate(cfg)
+        cfg["extensions"]["hookshot"]["config"]["cache"] = {"redisUri": "redis://cache.example.com:6379"}
+        m.validate(cfg)
+        synapse = m.synapse_config(cfg, self.values, self.portmap)
+        self.assertTrue(synapse["experimental_features"]["msc2409_to_device_messages_enabled"])
+        self.assertTrue(synapse["experimental_features"]["msc3202_transaction_extensions"])
+        self.assertTrue(m.registration("hookshot", cfg, self.values, self.portmap)["org.matrix.msc3202"])
 
     def test_media_ip_and_allocated_port_ranges_are_validated(self):
         cfg = configured()
@@ -134,6 +150,30 @@ class Configuration(unittest.TestCase):
         self.assertEqual(result["crypto_db_pickle_key"], m.secret_store(self.state)["maubot_crypto"])
         cfg["extensions"]["maubot"]["config"] = {"plugin_databases": {"postgres": "default"}}
         self.assertIsNone(m.extension_config("maubot", cfg, self.values, self.portmap)["plugin_databases"]["postgres"])
+
+    def test_postmoogle_aes_key_is_valid_stable_and_repairs_invalid_development_keys(self):
+        self.assertEqual(len(self.values["postmoogle_data"].encode()), 32)
+        for length in (16, 24, 32):
+            values = dict(self.values, postmoogle_data="a" * length)
+            m.write(self.state / "secrets.json", values)
+            self.assertEqual(m.secret_store(self.state), values)
+        invalid = dict(self.values, postmoogle_data="a" * 64)
+        m.write(self.state / "secrets.json", invalid)
+        repaired = m.secret_store(self.state)
+        self.assertEqual(len(repaired["postmoogle_data"].encode()), 32)
+        self.assertEqual(repaired, m.secret_store(self.state))
+        self.assertEqual({k: v for k, v in invalid.items() if k != "postmoogle_data"},
+                         {k: v for k, v in repaired.items() if k != "postmoogle_data"})
+
+    def test_bridge_crypto_bots_can_sync_and_steam_has_signed_public_media(self):
+        cfg = everything()
+        for name in m.MAUTRIX_BRIDGES:
+            self.assertNotEqual(m.registration(name, cfg, self.values, self.portmap)["sender_localpart"], m.BOT_NAMES[name])
+        self.assertFalse(m.synapse_config(cfg, self.values, self.portmap)["serve_client_wellknown"])
+        steam = m.extension_config("steam", cfg, self.values, self.portmap)
+        self.assertEqual(steam["appservice"]["public_address"], "https://matrix.example.com/steam")
+        self.assertEqual(steam["public_media"]["signing_key"], self.values["steam_media"])
+        self.assertIn("location /steam/_mautrix/publicmedia/", m.gateway_config(cfg, {}, self.portmap))
 
     def test_tokens_are_distinct_private_and_survive_reconfiguration(self):
         self.assertEqual(self.values, m.secret_store(self.state))

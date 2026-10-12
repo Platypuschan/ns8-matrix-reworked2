@@ -56,6 +56,8 @@ Some extensions need additional configuration:
 - **Postmoogle**: `POSTMOOGLE_DOMAINS` and, if needed, SMTP relay settings. Deliver incoming mail through an existing SMTP relay to the allocated port shown on the Status page. This module does not bind port 25 or manage DNS MX records.
 - **Hookshot**: generic webhooks and feeds work out of the box. GitHub/GitLab and other integrations need their upstream credentials/settings. Private key files must be provisioned separately before enabling integrations that reference them.
 
+Hookshot's optional support for encrypted rooms requires an external Redis cache. Configure `cache.redisUri` together with `encryption.storagePath` in its JSON settings; the module enables the required Synapse appservice extensions. Steam's signed media downloads use the Synapse domain through the module gateway.
+
 maubot includes the plugin libraries from the existing `ns8-maubot` runtime: BeautifulSoup, emoji, APScheduler, cron-descriptor, matplotlib, NumPy and pillow-heif. Upload plugins through maubot's management interface.
 
 ## Calls and network

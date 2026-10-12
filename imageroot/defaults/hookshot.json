@@ -31,9 +31,6 @@
   "metrics": {
     "enabled": false
   },
-  "encryption": {
-    "storagePath": "/data/encryption"
-  },
   "logging": {
     "level": "warn"
   },
