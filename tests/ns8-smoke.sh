@@ -14,7 +14,7 @@ failed() {
     fi
 }
 trap 'failed "$LINENO"' ERR
-add-module "$image" 1 > "$work/add.json"
+api-cli run add-module --data "$(jq -n --arg image "$image" '{image:$image,node:1}')" > "$work/add.json"
 module="$(jq -r '.module_id' "$work/add.json")"
 [[ "$module" != null && -n "$module" ]]
 echo "Installed $module"
@@ -105,11 +105,15 @@ runagent -m "$module" podman exec matrix-maubot sh -c 'printf before > /data/plu
 signing_before="$(runagent -m "$module" podman exec matrix-synapse sha256sum /data/signing.key | cut -d' ' -f1)"
 runagent -m "$module" module-dump-state
 runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -v ON_ERROR_STOP=1 -c 'UPDATE ns8_backup_probe SET value=$$after$$;' > /dev/null
+runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -v ON_ERROR_STOP=1 -c 'CREATE TABLE ns8_after_backup_probe(value text);' > /dev/null
 runagent -m "$module" podman exec matrix-maubot sh -c 'printf after > /data/plugins/ns8-backup-probe.txt'
+runagent -m "$module" podman exec matrix-maubot sh -c 'printf after > /data/plugins/ns8-after-backup-probe.txt'
 runagent -m "$module" matrixctl restore > "$work/restore.json"
 value="$(runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -Atc 'SELECT value FROM ns8_backup_probe;')"
 [[ "$value" == before ]]
+[[ "$(runagent -m "$module" podman exec matrix-postgres psql -U matrix -d synapse -Atc "SELECT to_regclass('ns8_after_backup_probe') IS NULL;")" == t ]]
 [[ "$(runagent -m "$module" podman exec matrix-maubot cat /data/plugins/ns8-backup-probe.txt)" == before ]]
+runagent -m "$module" podman exec matrix-maubot sh -c 'test ! -e /data/plugins/ns8-after-backup-probe.txt'
 [[ "$(runagent -m "$module" podman exec matrix-synapse sha256sum /data/signing.key | cut -d' ' -f1)" == "$signing_before" ]]
 echo 'Database, plugin data, credentials and server signing key survived restore'
 

@@ -409,6 +409,9 @@ if not os.path.exists(path):
             return {"configured": False}
         if manifest.get("format") != 1 or set(manifest["volumes"]) - set(VOLUMES) or set(manifest["databases"]) - set(configlib.DATABASES):
             raise ValueError("Unsupported Matrix backup format")
+        for name, suffix in [(name, ".tgz") for name in manifest["volumes"]] + [(name, ".pgdump") for name in manifest["databases"]]:
+            if not (backup / (name + suffix)).is_file():
+                raise RuntimeError("The Matrix backup is incomplete: " + name)
         with self.lock():
             self.systemd("stop", "matrix-compressor.timer", "matrix-compressor.service")
             for filename in ("config.json", "secrets.json", "hookshot-passkey.pem"):
@@ -420,13 +423,19 @@ if not os.path.exists(path):
                 if self.active(name):
                     self.systemd("stop", "matrix-" + name + ".service")
             for name in manifest["volumes"]:
-                self.command(["podman", "volume", "create", "matrix-" + name + "-data"])
-                self.command(["podman", "run", "--rm", "--network", "none", "--user", "0:0", "--volume", "matrix-" + name + "-data:/dest:z", "--volume", str(backup) + ":/backup:ro,z", self.image("utility"), "tar", "xzf", "/backup/" + name + ".tgz", "-C", "/dest"], timeout=3600)
+                volume = "matrix-" + name + "-data"
+                if self.command(["podman", "volume", "exists", volume], check=False).returncode == 0:
+                    self.command(["podman", "volume", "rm", volume])
+                self.command(["podman", "volume", "create", volume])
+                self.command(["podman", "run", "--rm", "--network", "none", "--user", "0:0", "--volume", volume + ":/dest:z", "--volume", str(backup) + ":/backup:ro,z", self.image("utility"), "tar", "xzf", "/backup/" + name + ".tgz", "-C", "/dest"], timeout=3600)
             # Regenerate node-specific ports and LDAP/SMTP bindings before opening traffic.
             ldap, smtp = self.discover(cfg)
             configlib.render(self.state, cfg, self.values(), self.portmap, ldap, smtp)
             self.systemd("daemon-reload")
             self.systemd("start", "matrix-postgres.service")
+            self.wait_database()
+            for name in manifest["databases"]:
+                self.sql("DROP DATABASE IF EXISTS " + name + ";")
             self.ensure_databases()
             for name in manifest["databases"]:
                 with (backup / (name + ".pgdump")).open("rb") as stream:

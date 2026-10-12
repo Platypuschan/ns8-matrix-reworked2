@@ -114,6 +114,28 @@ class Lifecycle(unittest.TestCase):
             self.runtime.restore()
         self.assertFalse(self.runtime.events)
 
+    def test_restore_rejects_missing_archives_before_changing_state(self):
+        m.write(self.state / "backup/manifest.json", {"configured": True, "format": 1, "databases": ["synapse"], "volumes": ["synapse"]})
+        with self.assertRaisesRegex(RuntimeError, "backup is incomplete"):
+            self.runtime.restore()
+        self.assertFalse(self.runtime.events)
+
+    def test_restore_recreates_managed_data_before_loading_the_snapshot(self):
+        backup = self.state / "backup"
+        m.write(backup / "manifest.json", {"configured": True, "format": 1, "databases": ["synapse"], "volumes": ["synapse"]})
+        (backup / "synapse.tgz").touch()
+        (backup / "synapse.pgdump").touch()
+        with patch("matrix_runtime.subprocess.run", return_value=subprocess.CompletedProcess([], 0)):
+            self.runtime.restore()
+        events = self.runtime.events
+        removed = events.index(("podman", "volume", "rm", "matrix-synapse-data"))
+        created = events.index(("podman", "volume", "create", "matrix-synapse-data"))
+        loaded = next(i for i, event in enumerate(events) if "tar" in event)
+        self.assertLess(removed, created)
+        self.assertLess(created, loaded)
+        dropped = events.index(("sql", "DROP DATABASE IF EXISTS synapse;"))
+        self.assertLess(dropped, events.index(("ensure_databases",)))
+
     def test_invalid_configuration_does_not_replace_working_state(self):
         original = (self.state / "config.json").read_bytes()
         with self.assertRaises(ValueError):
