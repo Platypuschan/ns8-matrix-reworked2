@@ -1,0 +1,56 @@
+name: Build and test module
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
+concurrency:
+  group: module-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  runtime:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        component: [synapse, maubot]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and publish runtime
+        env:
+          REPOBASE: ghcr.io/${{ github.repository_owner }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          set -Eeuo pipefail
+          image="$(.github/scripts/runtime-image "$COMPONENT")"
+          buildah bud --layers -t "$image" "runtime/$COMPONENT"
+          printf '%s' "$REGISTRY_TOKEN" | buildah login --username "$GITHUB_ACTOR" --password-stdin ghcr.io
+          buildah push "$image" "docker://$image"
+  publish:
+    needs: runtime
+    uses: NethServer/ns8-github-actions/.github/workflows/publish-branch.yml@v1
+    with:
+      runner-version: ubuntu-24.04
+  module:
+    needs: publish
+    uses: NethServer/ns8-github-actions/.github/workflows/module-info.yml@v1
+  qemu:
+    name: NS8
+    needs: module
+    permissions:
+      contents: read
+      statuses: write
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [rocky9, debian13]
+    uses: NethServer/ns8-github-actions/.github/workflows/test-on-qemu.yml@v1
+    with:
+      distro: ${{ matrix.distro }}
+      image_url: ${{ needs.module.outputs.image }}
+      repo_ref: ${{ needs.module.outputs.sha }}
+      version_tag: ${{ needs.module.outputs.tag }}
+      script: test-module.sh
+      disk_size: 60G
+      timeout_minutes: 60

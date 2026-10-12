@@ -1,0 +1,86 @@
+{
+  "database": "sqlite:////data/maubot.db",
+  "crypto_database": {
+    "type": "default"
+  },
+  "database_opts": {
+    "min_size": 1,
+    "max_size": 10
+  },
+  "plugin_directories": {
+    "upload": "/data/plugins",
+    "load": [
+      "/data/plugins"
+    ],
+    "trash": "/data/trash"
+  },
+  "plugin_databases": {
+    "sqlite": "/data/dbs",
+    "postgres": "default"
+  },
+  "server": {
+    "hostname": "0.0.0.0",
+    "port": 29316,
+    "public_url": "https://None/_matrix/maubot",
+    "ui_base_path": "/",
+    "plugin_base_path": "/plugin/",
+    "override_resource_path": "/opt/maubot/frontend",
+    "unshared_secret": "generate"
+  },
+  "homeservers": {
+    "example.com": {
+      "url": null,
+      "secret": null
+    }
+  },
+  "admins": {
+    "root": ""
+  },
+  "api_features": {
+    "login": true,
+    "plugin": true,
+    "plugin_upload": true,
+    "instance": true,
+    "instance_database": true,
+    "client": true,
+    "client_proxy": true,
+    "client_auth": true,
+    "dev_open": true,
+    "log": true
+  },
+  "logging": {
+    "version": 1,
+    "formatters": {
+      "colored": {
+        "()": "maubot.lib.color_log.ColorFormatter",
+        "format": "[%(asctime)s] [%(levelname)s@%(name)s] %(message)s"
+      },
+      "normal": {
+        "format": "[%(asctime)s] [%(levelname)s@%(name)s] %(message)s"
+      }
+    },
+    "handlers": {
+      "console": {
+        "class": "logging.StreamHandler",
+        "formatter": "colored"
+      }
+    },
+    "loggers": {
+      "maubot": {
+        "level": "WARNING"
+      },
+      "mau": {
+        "level": "WARNING"
+      },
+      "aiohttp": {
+        "level": "WARNING"
+      }
+    },
+    "root": {
+      "level": "WARNING",
+      "handlers": [
+        "console"
+      ]
+    }
+  }
+}

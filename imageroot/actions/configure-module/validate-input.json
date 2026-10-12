@@ -1,0 +1,293 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "server_name",
+    "synapse_domain_name"
+  ],
+  "properties": {
+    "server_name": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "synapse_domain_name": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "element_domain_name": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "jitsi_domain_name": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "ldap_domain": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "ldap_filter": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "mail_from": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "bridge_admin": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "lets_encrypt": {
+      "type": "boolean"
+    },
+    "federation": {
+      "type": "boolean"
+    },
+    "enable_registration": {
+      "type": "boolean"
+    },
+    "use_smarthost": {
+      "type": "boolean"
+    },
+    "shared_secret_auth": {
+      "type": "boolean"
+    },
+    "auto_compressor": {
+      "type": "boolean"
+    },
+    "turn": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "domain_name": {
+          "type": "string"
+        },
+        "public_ip": {
+          "type": "string"
+        }
+      }
+    },
+    "rtc": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "domain_name": {
+          "type": "string"
+        },
+        "public_ip": {
+          "type": "string"
+        }
+      }
+    },
+    "synapse_extra": {
+      "type": "object",
+      "writeOnly": true
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "discord": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "telegram": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "whatsapp": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "signal": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "heisenbridge": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "hookshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "steam": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "postmoogle": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "maubot": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "draupnir": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "buscarron": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        },
+        "ketesa": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "host": {
+              "type": "string"
+            },
+            "config": {
+              "type": "object",
+              "writeOnly": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

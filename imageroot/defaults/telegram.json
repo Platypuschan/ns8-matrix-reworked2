@@ -1,0 +1,231 @@
+{
+  "network": {
+    "api_id": 0,
+    "api_hash": null,
+    "device_info": {
+      "device_model": "mautrix-telegram",
+      "system_version": null,
+      "app_version": "auto",
+      "lang_code": "en",
+      "system_lang_code": "en"
+    },
+    "animated_sticker": {
+      "target": "gif",
+      "convert_from_webm": false,
+      "args": {
+        "width": 256,
+        "height": 256,
+        "fps": 25
+      }
+    },
+    "member_list": {
+      "max_initial_sync": 100,
+      "sync_broadcast_channels": false,
+      "skip_deleted": true
+    },
+    "ping": {
+      "interval_seconds": 30,
+      "timeout_seconds": 10
+    },
+    "proxy": {
+      "type": "disabled",
+      "address": "127.0.0.1:1080",
+      "username": null,
+      "password": null
+    },
+    "sync": {
+      "update_limit": 100,
+      "create_limit": 15,
+      "login_sync_limit": 15,
+      "direct_chats": true
+    },
+    "takeout": {
+      "dialog_sync": false,
+      "forward_backfill": false,
+      "backward_backfill": false
+    },
+    "max_member_count": -1,
+    "contact_avatars": false,
+    "contact_names": false,
+    "always_custom_emoji_reaction": false,
+    "saved_message_avatar": "mxc://maunium.net/XhhfHoPejeneOngMyBbtyWDk",
+    "always_tombstone_on_supergroup_migration": false,
+    "image_as_file_pixels": 16777216,
+    "disable_view_once": false,
+    "displayname_template": "{{ if .Deleted }}Deleted account {{ .UserID }}{{ else }}{{ .FullName }}{{ end }}"
+  },
+  "bridge": {
+    "command_prefix": "!tg",
+    "personal_filtering_spaces": true,
+    "private_chat_portal_meta": true,
+    "async_events": false,
+    "split_portals": false,
+    "resend_bridge_info": false,
+    "bridge_matrix_leave": false,
+    "tag_only_on_create": true,
+    "mute_only_on_create": true,
+    "cleanup_on_logout": {
+      "enabled": false,
+      "manual": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      },
+      "bad_credentials": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      }
+    },
+    "relay": {
+      "enabled": false,
+      "admin_only": true,
+      "default_relays": [],
+      "message_formats": {
+        "m.text": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.notice": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.emote": "* <b>{{ .Sender.DisambiguatedName }}</b> {{ .Message }}",
+        "m.file": "<b>{{ .Sender.DisambiguatedName }}</b> sent a file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.image": "<b>{{ .Sender.DisambiguatedName }}</b> sent an image{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.audio": "<b>{{ .Sender.DisambiguatedName }}</b> sent an audio file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.video": "<b>{{ .Sender.DisambiguatedName }}</b> sent a video{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.location": "<b>{{ .Sender.DisambiguatedName }}</b> sent a location{{ if .Caption }}: {{ .Caption }}{{ end }}"
+      }
+    },
+    "permissions": {
+      "*": "relay",
+      "example.com": "user"
+    }
+  },
+  "database": {
+    "type": "sqlite3-fk-wal",
+    "uri": "/data/mautrix-telegram.db",
+    "max_open_conns": 20,
+    "max_idle_conns": 2,
+    "max_conn_idle_time": null,
+    "max_conn_lifetime": null
+  },
+  "homeserver": {
+    "address": null,
+    "domain": "example.com",
+    "software": "standard",
+    "status_endpoint": null,
+    "message_send_checkpoint_endpoint": null,
+    "async_media": false,
+    "websocket": false,
+    "ping_interval_seconds": 0
+  },
+  "appservice": {
+    "address": "http://matrix-mautrix-telegram:8080",
+    "public_address": "",
+    "hostname": "0.0.0.0",
+    "port": 8080,
+    "id": "telegram",
+    "bot": {
+      "username": "telegrambot",
+      "displayname": "Telegram bridge bot",
+      "avatar": "mxc://maunium.net/tJCRmUyJDsgRNgqhOgoiHWbX"
+    },
+    "ephemeral_events": true,
+    "async_transactions": false,
+    "as_token": null,
+    "hs_token": null,
+    "username_template": "telegram_{{.}}"
+  },
+  "matrix": {
+    "message_status_events": false,
+    "delivery_receipts": false,
+    "message_error_notices": true,
+    "sync_direct_chat_list": true,
+    "federate_rooms": true,
+    "upload_file_threshold": 5242880
+  },
+  "analytics": {
+    "token": null,
+    "url": "https://api.segment.io/v1/track",
+    "user_id": null
+  },
+  "provisioning": {
+    "prefix": "/_matrix/provision",
+    "shared_secret": null,
+    "allow_matrix_auth": true,
+    "debug_endpoints": false
+  },
+  "public_media": {
+    "enabled": false,
+    "signing_key": null,
+    "expiry": 0,
+    "hash_length": 32
+  },
+  "direct_media": {
+    "enabled": false,
+    "server_name": "telegram-media.example.com",
+    "well_known_response": null,
+    "media_id_prefix": null,
+    "allow_proxy": true,
+    "server_key": ""
+  },
+  "backfill": {
+    "enabled": true,
+    "max_initial_messages": 50,
+    "max_catchup_messages": 500,
+    "unread_hours_threshold": 720,
+    "threads": {
+      "max_initial_messages": 50
+    },
+    "queue": {
+      "enabled": false,
+      "batch_size": 100,
+      "batch_delay": 20,
+      "max_batches": -1,
+      "max_batches_override": {}
+    }
+  },
+  "double_puppet": {
+    "servers": {},
+    "allow_discovery": false,
+    "secrets": {}
+  },
+  "encryption": {
+    "allow": true,
+    "default": true,
+    "require": false,
+    "appservice": false,
+    "msc4190": false,
+    "self_sign": false,
+    "allow_key_sharing": true,
+    "pickle_key": "mautrix.bridge.e2ee",
+    "delete_keys": {
+      "delete_outbound_on_ack": false,
+      "dont_store_outbound": false,
+      "ratchet_on_decrypt": false,
+      "delete_fully_used_on_decrypt": false,
+      "delete_prev_on_new_session": false,
+      "delete_on_device_delete": false,
+      "periodically_delete_expired": false,
+      "delete_outdated_inbound": false
+    },
+    "verification_levels": {
+      "receive": "unverified",
+      "send": "unverified",
+      "share": "cross-signed-tofu"
+    },
+    "rotation": {
+      "enable_custom": false,
+      "milliseconds": 604800000,
+      "messages": 100,
+      "disable_device_change_key_rotation": false
+    }
+  },
+  "logging": {
+    "min_level": "warn",
+    "writers": [
+      {
+        "type": "stdout",
+        "format": "pretty-colored"
+      }
+    ]
+  }
+}

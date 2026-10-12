@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[Unit]
+Description=Scheduled Matrix cleanup
+[Timer]
+OnCalendar=weekly
+RandomizedDelaySec=600
+Persistent=true
+[Install]
+WantedBy=timers.target

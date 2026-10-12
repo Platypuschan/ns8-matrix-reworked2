@@ -1,0 +1,21 @@
+{
+  "name": "Matrix Reworked 2",
+  "description": {
+    "en": "Matrix homeserver with Element, optional bridges, bots and MatrixRTC",
+    "de": "Matrix-Homeserver mit Element, optionalen Bridges, Bots und MatrixRTC"
+  },
+  "categories": [
+    "collaboration"
+  ],
+  "authors": [
+    {
+      "name": "Platypuschan"
+    }
+  ],
+  "docs": {
+    "documentation_url": "https://github.com/Platypuschan/ns8-matrix-reworked2#readme",
+    "bug_url": "https://github.com/Platypuschan/ns8-matrix-reworked2/issues",
+    "code_url": "https://github.com/Platypuschan/ns8-matrix-reworked2"
+  },
+  "source": "ghcr.io/platypuschan/matrix-reworked2"
+}

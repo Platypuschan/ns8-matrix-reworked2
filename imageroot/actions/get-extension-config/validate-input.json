@@ -1,0 +1,26 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name"
+  ],
+  "properties": {
+    "name": {
+      "enum": [
+        "discord",
+        "telegram",
+        "whatsapp",
+        "signal",
+        "heisenbridge",
+        "hookshot",
+        "steam",
+        "postmoogle",
+        "maubot",
+        "draupnir",
+        "buscarron",
+        "ketesa",
+        "synapse"
+      ]
+    }
+  }
+}
