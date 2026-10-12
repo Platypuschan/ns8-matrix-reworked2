@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[Unit]
+Description=Matrix compressor
+After=matrix-postgres.service
+ConditionPathExists=%E/state/config.json
+[Service]
+Type=oneshot
+EnvironmentFile=%E/state/environment
+WorkingDirectory=%E/state
+ExecStart=runagent matrixctl run compressor
+TimeoutStartSec=3600

@@ -1,0 +1,47 @@
+{
+  "bridge": {
+    "domain": "example.com",
+    "url": "None",
+    "mediaUrl": "None",
+    "port": 9993,
+    "bindAddress": "0.0.0.0"
+  },
+  "generic": {
+    "enabled": true,
+    "outbound": true,
+    "enableHttpGet": false,
+    "urlPrefix": "https://hookshot.example.com/webhook/",
+    "userIdPrefix": "_webhooks_",
+    "allowJsTransformationFunctions": false,
+    "waitForComplete": false,
+    "sendExpiryNotice": false,
+    "requireExpiryTime": false,
+    "maxExpiryTime": "30d"
+  },
+  "feeds": {
+    "enabled": true,
+    "pollIntervalSeconds": 600,
+    "pollTimeoutSeconds": 30
+  },
+  "passFile": "/data/passkey.pem",
+  "bot": {
+    "displayname": "Hookshot Bot",
+    "avatar": "mxc://half-shot.uk/2876e89ccade4cb615e210c458e2a7a6883fe17d"
+  },
+  "metrics": {
+    "enabled": false
+  },
+  "logging": {
+    "level": "warn"
+  },
+  "connections": [],
+  "listeners": [
+    {
+      "port": 9000,
+      "bindAddress": "0.0.0.0",
+      "resources": [
+        "webhooks"
+      ]
+    }
+  ]
+}

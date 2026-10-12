@@ -1,0 +1,35 @@
+name: Validate
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate Python, JSON, shell scripts and packaged files
+        run: python3 tests/validate_repo.py
+      - name: Configuration and lifecycle tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: Require a version increment after the initial module
+        if: github.event_name == 'pull_request'
+        run: .github/scripts/check-catalog-version --base origin/${{ github.base_ref }}
+  ui:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.21.0'
+      - run: corepack enable
+      - run: yarn install --immutable
+        working-directory: ui
+      - run: yarn lint --no-fix && yarn build
+        working-directory: ui
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider

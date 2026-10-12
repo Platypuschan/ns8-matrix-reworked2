@@ -1,0 +1,206 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+from types import ModuleType
+import unittest
+from unittest.mock import Mock, patch
+
+from test_config import ENV, configured
+from matrix_runtime import Runtime
+import matrix_config as m
+
+
+class FakeRuntime(Runtime):
+    def __init__(self, state):
+        super().__init__(state, ENV)
+        self.events = []
+        self.running = {"synapse", "gateway", "maubot"}
+        self.fail_dump = False
+        self.fail_tar = False
+        self.fail_start = set()
+        self.fail_restore = False
+        self.fail_ready = False
+
+    def command(self, args, **kwargs):
+        self.events.append(tuple(args))
+        if "pg_dump" in args and self.fail_dump:
+            raise RuntimeError("dump failed")
+        if "tar" in args and self.fail_tar:
+            raise RuntimeError("archive failed")
+        if args[:3] == ["podman", "volume", "exists"]:
+            return subprocess.CompletedProcess(args, 0, "", "")
+        if args[:2] == ["podman", "ps"]:
+            return subprocess.CompletedProcess(args, 0, json.dumps([{"Names": ["matrix-maubot"], "State": "exited"}, {"Names": ["unrelated"], "State": "exited"}, {"Names": ["matrix-synapse"], "State": "running"}]), "")
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    def systemd(self, *args, check=True):
+        self.events.append(tuple(args))
+        if args[0] == "start" and args[1].removeprefix("matrix-").removesuffix(".service") in self.fail_start:
+            raise RuntimeError("start failed")
+        return subprocess.CompletedProcess(args, 1 if args[0] == "is-active" else 0, "inactive", "")
+
+    def active(self, name):
+        return name in self.running
+
+    def sql(self, text, db="postgres"):
+        self.events.append(("sql", text))
+        return "1" if "datname='synapse'" in text else ""
+
+    def discover(self, cfg):
+        return None, None
+
+    def ensure_databases(self):
+        self.events.append(("ensure_databases",))
+
+    def wait_synapse(self, gateway=False):
+        self.events.append(("wait_synapse", gateway))
+        if self.fail_ready:
+            raise RuntimeError("readiness failed")
+
+    def setup_routes(self, cfg):
+        self.events.append(("routes",))
+
+    def reconcile(self):
+        self.events.append(("reconcile",))
+
+
+class Lifecycle(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.state = Path(self.tmp.name)
+        m.write(self.state / "config.json", configured())
+        self.values = m.secret_store(self.state)
+        self.runtime = FakeRuntime(self.state)
+
+    def test_dump_failure_resumes_all_previous_writers(self):
+        self.runtime.fail_dump = True
+        with self.assertRaisesRegex(RuntimeError, "dump failed"):
+            self.runtime.snapshot()
+        for name in self.runtime.running:
+            self.assertIn(("start", "matrix-" + name + ".service"), self.runtime.events)
+        self.assertFalse((self.state / "backup/manifest.json").exists())
+        self.assertNotIn(("stop", "matrix-postgres.service"), self.runtime.events)
+
+    def test_archive_failure_does_not_publish_partial_backup(self):
+        self.runtime.fail_tar = True
+        with self.assertRaisesRegex(RuntimeError, "archive failed"):
+            self.runtime.snapshot()
+        self.assertFalse((self.state / "backup/manifest.json").exists())
+        self.assertIn(("start", "matrix-synapse.service"), self.runtime.events)
+
+    def test_one_resume_failure_does_not_skip_other_services(self):
+        self.runtime.fail_start = {"synapse"}
+        with self.assertRaisesRegex(RuntimeError, "could not resume"):
+            self.runtime.snapshot()
+        for name in self.runtime.running:
+            self.assertIn(("start", "matrix-" + name + ".service"), self.runtime.events)
+
+    def test_backup_resume_waits_for_the_homeserver_before_starting_bots(self):
+        self.runtime.snapshot()
+        events = self.runtime.events
+        ready = events.index(("wait_synapse", True))
+        self.assertLess(events.index(("start", "matrix-gateway.service")), ready)
+        self.assertLess(ready, events.index(("start", "matrix-maubot.service")))
+
+    def test_readiness_failure_still_attempts_all_other_resumes(self):
+        self.runtime.fail_ready = True
+        with self.assertRaisesRegex(RuntimeError, "could not resume"):
+            self.runtime.snapshot()
+        for name in self.runtime.running:
+            self.assertIn(("start", "matrix-" + name + ".service"), self.runtime.events)
+
+    def test_copy_and_database_dump_finish_before_services_resume(self):
+        self.runtime.snapshot()
+        events = self.runtime.events
+        first_resume = next(i for i, event in enumerate(events) if event[0] == "start")
+        archive_events = [i for i, event in enumerate(events) if "tar" in event]
+        dump_events = [i for i, event in enumerate(events) if "pg_dump" in event]
+        self.assertTrue(archive_events and dump_events)
+        self.assertLess(max(archive_events + dump_events), first_resume)
+        self.assertEqual(json.loads((self.state / "backup/secrets.json").read_text()), self.values)
+        self.assertEqual(json.loads((self.state / "backup/config.json").read_text()), configured())
+
+    def test_cleanup_leaves_running_containers_and_every_volume_alone(self):
+        self.runtime.cleanup()
+        self.assertIn(("podman", "rm", "--ignore", "matrix-maubot"), self.runtime.events)
+        self.assertFalse(any("unrelated" in event or "matrix-synapse" in event or "prune" in event or "volume" in event for event in self.runtime.events))
+
+    def test_restore_rejects_unknown_volume_without_running_commands(self):
+        m.write(self.state / "backup/manifest.json", {"configured": True, "format": 1, "databases": ["synapse"], "volumes": ["unrelated"]})
+        with self.assertRaises(ValueError):
+            self.runtime.restore()
+        self.assertFalse(self.runtime.events)
+
+    def test_restore_rejects_missing_archives_before_changing_state(self):
+        m.write(self.state / "backup/manifest.json", {"configured": True, "format": 1, "databases": ["synapse"], "volumes": ["synapse"]})
+        with self.assertRaisesRegex(RuntimeError, "backup is incomplete"):
+            self.runtime.restore()
+        self.assertFalse(self.runtime.events)
+
+    def test_restore_recreates_managed_data_before_loading_the_snapshot(self):
+        backup = self.state / "backup"
+        m.write(backup / "manifest.json", {"configured": True, "format": 1, "databases": ["synapse"], "volumes": ["synapse"]})
+        (backup / "synapse.tgz").touch()
+        (backup / "synapse.pgdump").touch()
+        with patch("matrix_runtime.subprocess.run", return_value=subprocess.CompletedProcess([], 0)):
+            self.runtime.restore()
+        events = self.runtime.events
+        removed = events.index(("podman", "volume", "rm", "matrix-synapse-data"))
+        created = events.index(("podman", "volume", "create", "matrix-synapse-data"))
+        loaded = next(i for i, event in enumerate(events) if "tar" in event)
+        self.assertLess(removed, created)
+        self.assertLess(created, loaded)
+        dropped = events.index(("sql", "DROP DATABASE IF EXISTS synapse;"))
+        self.assertLess(dropped, events.index(("ensure_databases",)))
+
+    def test_invalid_configuration_does_not_replace_working_state(self):
+        original = (self.state / "config.json").read_bytes()
+        with self.assertRaises(ValueError):
+            self.runtime.configure({"server_name": "different.example.com"})
+        self.assertEqual((self.state / "config.json").read_bytes(), original)
+        self.assertFalse(self.runtime.events)
+
+    def test_repeated_save_does_not_schedule_restarts(self):
+        self.runtime.configure(configured())
+        (self.state / "restart-required").unlink()
+        result = self.runtime.configure(configured())
+        self.assertFalse(result["changed"])
+        self.assertFalse((self.state / "restart-required").exists())
+
+    def test_recovery_rotation_updates_the_account_and_saved_password(self):
+        with patch.object(self.runtime, "login", return_value="admin-token"), patch.object(self.runtime, "http", return_value={}) as api:
+            result = self.runtime.recovery(rotate=True)
+        api.assert_called_once_with(
+            "/_synapse/admin/v1/reset_password/%40recovery-admin%3Aexample.com",
+            {"new_password": result["password"], "logout_devices": True}, token="admin-token")
+        self.assertNotEqual(result["password"], self.values["recovery_admin"])
+        self.assertEqual(m.secret_store(self.state)["recovery_admin"], result["password"])
+
+    def test_failed_recovery_rotation_keeps_the_previous_password(self):
+        with patch.object(self.runtime, "login", return_value="admin-token"), patch.object(self.runtime, "http", side_effect=RuntimeError("API failed")):
+            with self.assertRaisesRegex(RuntimeError, "API failed"):
+                self.runtime.recovery(rotate=True)
+        self.assertEqual(m.secret_store(self.state)["recovery_admin"], self.values["recovery_admin"])
+
+    def test_firewall_removal_accepts_only_its_own_missing_service(self):
+        agent = ModuleType("agent")
+        tasks = ModuleType("agent.tasks")
+        agent.tasks = tasks
+        self.runtime.environ["NODE_ID"] = "1"
+        cases = [(0, "", True), (1, "Error: INVALID_SERVICE: matrix-reworked21\n", True),
+                 (1, "Error: INVALID_SERVICE: matrix-reworked21-other", False),
+                 (1, "permission denied", False)]
+        for code, error, expected in cases:
+            with self.subTest(error=error):
+                tasks.run = Mock(return_value={"exit_code": code, "error": error})
+                with patch.dict(sys.modules, {"agent": agent, "agent.tasks": tasks}):
+                    self.assertEqual(self.runtime.remove_firewall(), expected)
+                self.assertEqual(tasks.run.call_args.kwargs["data"], {"service": "matrix-reworked21"})
+
+
+if __name__ == "__main__":
+    unittest.main()

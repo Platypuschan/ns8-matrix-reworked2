@@ -1,0 +1,179 @@
+{
+  "network": {
+    "displayname_template": "{{or .ProfileName .PhoneNumber \"Unknown user\"}} (Signal)",
+    "use_contact_avatars": false,
+    "sync_contacts_on_startup": true,
+    "use_outdated_profiles": false,
+    "number_in_topic": true,
+    "device_name": "mautrix-signal",
+    "note_to_self_avatar": "mxc://maunium.net/REBIVrqjZwmaWpssCZpBlmlL",
+    "location_format": "https://www.google.com/maps/place/%[1]s,%[2]s",
+    "extev_polls": false
+  },
+  "bridge": {
+    "command_prefix": "!signal",
+    "personal_filtering_spaces": true,
+    "private_chat_portal_meta": true,
+    "bridge_matrix_leave": false,
+    "tag_only_on_create": true,
+    "mute_only_on_create": true,
+    "cleanup_on_logout": {
+      "enabled": false,
+      "manual": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      },
+      "bad_credentials": {
+        "private": "nothing",
+        "relayed": "nothing",
+        "shared_no_users": "nothing",
+        "shared_has_users": "nothing"
+      }
+    },
+    "relay": {
+      "enabled": false,
+      "admin_only": true,
+      "default_relays": [],
+      "message_formats": {
+        "m.text": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.notice": "<b>{{ .Sender.DisambiguatedName }}</b>: {{ .Message }}",
+        "m.emote": "* <b>{{ .Sender.DisambiguatedName }}</b> {{ .Message }}",
+        "m.file": "<b>{{ .Sender.DisambiguatedName }}</b> sent a file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.image": "<b>{{ .Sender.DisambiguatedName }}</b> sent an image{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.audio": "<b>{{ .Sender.DisambiguatedName }}</b> sent an audio file{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.video": "<b>{{ .Sender.DisambiguatedName }}</b> sent a video{{ if .Caption }}: {{ .Caption }}{{ end }}",
+        "m.location": "<b>{{ .Sender.DisambiguatedName }}</b> sent a location{{ if .Caption }}: {{ .Caption }}{{ end }}"
+      },
+      "displayname_format": "{{ .DisambiguatedName }}"
+    },
+    "permissions": {
+      "*": "relay",
+      "example.com": "user"
+    }
+  },
+  "database": {
+    "type": "sqlite3-fk-wal",
+    "uri": "/data/mautrix-signal.db?_txlock=immediate",
+    "max_open_conns": 20,
+    "max_idle_conns": 2,
+    "max_conn_idle_time": null,
+    "max_conn_lifetime": null
+  },
+  "homeserver": {
+    "address": null,
+    "domain": "example.com",
+    "software": "standard",
+    "status_endpoint": null,
+    "message_send_checkpoint_endpoint": null,
+    "async_media": false,
+    "websocket": false,
+    "ping_interval_seconds": 0
+  },
+  "appservice": {
+    "address": "http://matrix-mautrix-signal:8080",
+    "public_address": "",
+    "hostname": "0.0.0.0",
+    "port": 8080,
+    "id": "signal",
+    "bot": {
+      "username": "signalbot",
+      "displayname": "signal bridge bot",
+      "avatar": "mxc://maunium.net/wPJgTQbZOtpBFmDNkiNEMDUp"
+    },
+    "ephemeral_events": true,
+    "async_transactions": false,
+    "as_token": null,
+    "hs_token": null,
+    "username_template": "signal_{{.}}"
+  },
+  "matrix": {
+    "message_status_events": false,
+    "delivery_receipts": false,
+    "message_error_notices": true,
+    "sync_direct_chat_list": false,
+    "federate_rooms": true
+  },
+  "provisioning": {
+    "prefix": "/_matrix/provision",
+    "shared_secret": null,
+    "allow_matrix_auth": true,
+    "debug_endpoints": false
+  },
+  "public_media": {
+    "enabled": false,
+    "signing_key": null,
+    "expiry": 0,
+    "hash_length": 32
+  },
+  "direct_media": {
+    "enabled": false,
+    "server_name": "media.example.com",
+    "well_known_response": null,
+    "media_id_prefix": null,
+    "allow_proxy": true,
+    "server_key": ""
+  },
+  "backfill": {
+    "enabled": true,
+    "max_initial_messages": 50,
+    "max_catchup_messages": 500,
+    "unread_hours_threshold": 720,
+    "threads": {
+      "max_initial_messages": 50
+    },
+    "queue": {
+      "enabled": false,
+      "batch_size": 100,
+      "batch_delay": 20,
+      "max_batches": -1,
+      "max_batches_override": {}
+    }
+  },
+  "double_puppet": {
+    "servers": {},
+    "allow_discovery": false,
+    "secrets": {}
+  },
+  "encryption": {
+    "allow": true,
+    "default": true,
+    "require": false,
+    "appservice": false,
+    "msc4190": false,
+    "self_sign": false,
+    "allow_key_sharing": true,
+    "pickle_key": "mautrix.bridge.e2ee",
+    "delete_keys": {
+      "delete_outbound_on_ack": false,
+      "dont_store_outbound": false,
+      "ratchet_on_decrypt": false,
+      "delete_fully_used_on_decrypt": false,
+      "delete_prev_on_new_session": false,
+      "delete_on_device_delete": false,
+      "periodically_delete_expired": false,
+      "delete_outdated_inbound": false
+    },
+    "verification_levels": {
+      "receive": "unverified",
+      "send": "unverified",
+      "share": "cross-signed-tofu"
+    },
+    "rotation": {
+      "enable_custom": false,
+      "milliseconds": 604800000,
+      "messages": 100,
+      "disable_device_change_key_rotation": false
+    }
+  },
+  "logging": {
+    "min_level": "warn",
+    "writers": [
+      {
+        "type": "stdout",
+        "format": "pretty-colored"
+      }
+    ]
+  }
+}

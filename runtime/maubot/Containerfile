@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# maubot runtime image: the official maubot release image with current
+# Alpine and Python security fixes and extra libraries for plugins.
+#
+# The maubot project rebuilds dock.mau.dev/maubot/maubot only for a new
+# release, so the Alpine 3.22 packages (OpenSSL, Python, expat, image
+# libraries for Pillow, ...) and the pip-installed HTTP libraries age between
+# releases. maubot uses them at runtime: TLS to homeservers, and plugins that
+# fetch and parse feeds, web pages or images.
+#
+# Any change in this directory produces a new image tag, see build-images.sh;
+# change REFRESHED to pick up later fixes without other changes.
+
+FROM dock.mau.dev/maubot/maubot:v0.6.0@sha256:6968ddea1e08aa7f8ac70ac7a706663fe8d7b4d6f96cd7a6bb8548637fb8cd17
+
+ARG REFRESHED=2026-10-10
+
+# Links the GHCR package to the (public) module repository.
+LABEL org.opencontainers.image.source="https://github.com/Platypuschan/ns8-matrix-reworked2"
+
+# Same minor versions as upstream (Alpine 3.22, Python 3.12); only patch
+# releases are installed. pytest stays because maubot's plugin test helpers
+# (pytest-asyncio) depend on it.
+#
+# maubot cannot install the Python dependencies of plugins, so libraries that
+# plugins of the plugin index (plugins.mau.bot) declare and the upstream
+# image lacks are added here, from Alpine where available so that they get
+# Alpine's security updates:
+#   py3-matplotlib (+ py3-numpy)      official tex plugin (LaTeX formulas)
+#   py3-beautifulsoup4                plugins that scrape web pages
+#   py3-emoji                         ntfy plugin (emoji names in titles)
+#   py3-apscheduler, py3-cron-descriptor  reminder plugins with cron schedules
+#   pillow-heif (pip)                 HEIC/HEIF images (not packaged in Alpine;
+#                                     the wheel bundles its own libheif)
+RUN set -eux; \
+    apk upgrade --no-cache; \
+    apk add --no-cache \
+        py3-matplotlib \
+        py3-numpy \
+        py3-beautifulsoup4 \
+        py3-emoji \
+        py3-apscheduler \
+        py3-cron-descriptor; \
+    pip3 install --no-cache-dir --break-system-packages --upgrade \
+        "urllib3>=2.8.0,<3" \
+        "requests>=2.33.0,<3" \
+        "pytest>=9.0.3,<10"; \
+    pip3 install --no-cache-dir --break-system-packages --no-deps \
+        "pillow-heif==1.8.0"; \
+    python3 -c "import maubot, mautrix, aiohttp, PIL, olm, ssl; print(ssl.OPENSSL_VERSION)"; \
+    python3 -c "import matplotlib, numpy, bs4, emoji, apscheduler, cron_descriptor, pillow_heif; pillow_heif.register_heif_opener(); print('plugin libraries ok')"

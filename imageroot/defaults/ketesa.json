@@ -1,0 +1,8 @@
+{
+  "restrictBaseUrl": "https://matrix.example.com",
+  "externalAuthProvider": false,
+  "wellKnownDiscovery": true,
+  "corsCredentials": "same-origin",
+  "asManagedUsers": [],
+  "menu": []
+}

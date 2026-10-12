@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+import json
+import os
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'pypkg'))
+from matrix_runtime import Runtime
+from matrix_config import write
+
+operation = sys.argv[1]
+try:
+    runtime = Runtime()
+    result = None
+    if operation == 'configure':
+        result = runtime.configure(json.load(sys.stdin))
+    elif operation == 'get':
+        result = runtime.get_configuration()
+    elif operation == 'status':
+        result = runtime.status()
+    elif operation == 'extension':
+        result = runtime.extension_settings(json.load(sys.stdin)['name'])
+    elif operation == 'recovery':
+        result = runtime.recovery()
+    elif operation == 'rotate-recovery':
+        result = runtime.recovery(rotate=True)
+    elif operation == 'run':
+        runtime.run_container(sys.argv[2])
+    elif operation == 'stop':
+        runtime.stop_container(sys.argv[2])
+    elif operation == 'prepare-synapse':
+        runtime.prepare_synapse()
+    elif operation == 'database-ready':
+        runtime.wait_database()
+    elif operation == 'snapshot':
+        runtime.snapshot()
+    elif operation == 'cleanup-snapshot':
+        runtime.cleanup_snapshot()
+    elif operation == 'restore':
+        result = runtime.restore()
+    elif operation == 'update':
+        config = runtime.read_config()
+        if config['server_name']:
+            write(runtime.state / 'restart-required', 'module updated\n')
+            result = runtime.configure(config)
+    elif operation == 'clone':
+        config = runtime.read_config()
+        if config['server_name']:
+            result = runtime.configure(config)
+    elif operation == 'destroy':
+        runtime.destroy()
+    elif operation == 'cleanup':
+        result = runtime.cleanup()
+    else:
+        raise ValueError('Unknown operation')
+    if result is not None:
+        json.dump(result, sys.stdout)
+        print()
+except (ValueError, RuntimeError, KeyError, TypeError, OSError) as error:
+    print('Matrix: ' + str(error), file=sys.stderr)
+    sys.exit(1)

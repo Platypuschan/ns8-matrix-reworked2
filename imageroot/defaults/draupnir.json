@@ -1,0 +1,58 @@
+{
+  "homeserverUrl": null,
+  "rawHomeserverUrl": null,
+  "accessToken": null,
+  "experimentalRustCrypto": false,
+  "dataPath": "/data",
+  "autojoinOnlyIfManager": true,
+  "recordIgnoredInvites": false,
+  "managementRoom": null,
+  "logLevel": "INFO",
+  "verifyPermissionsOnStartup": true,
+  "noop": false,
+  "disableServerACL": false,
+  "automaticallyRedactForReasons": [
+    "spam",
+    "advertising"
+  ],
+  "protectAllJoinedRooms": false,
+  "backgroundDelayMS": 500,
+  "admin": {
+    "enableMakeRoomAdminCommand": false
+  },
+  "commands": {
+    "allowNoPrefix": false,
+    "symbolPrefixes": [
+      "!"
+    ],
+    "additionalPrefixes": [
+      "draupnir-bot",
+      "draupnir_bot",
+      "draupnir"
+    ],
+    "ban": {
+      "defaultReasons": [
+        "spam",
+        "brigading",
+        "harassment",
+        "disagreement"
+      ]
+    }
+  },
+  "roomStateBackingStore": {
+    "enabled": true
+  },
+  "health": {
+    "healthz": {
+      "enabled": false,
+      "port": 8080,
+      "address": "0.0.0.0",
+      "endpoint": "/healthz",
+      "healthyStatus": 200,
+      "unhealthyStatus": 418
+    },
+    "sentry": null
+  },
+  "pollReports": false,
+  "displayReports": false
+}

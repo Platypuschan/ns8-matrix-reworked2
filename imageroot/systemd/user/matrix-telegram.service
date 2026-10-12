@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+[Unit]
+Description=Matrix telegram
+After=network-online.target matrix-synapse.service
+PartOf=matrix.target
+ConditionPathExists=%E/state/config.json
+
+[Service]
+Type=exec
+EnvironmentFile=%E/state/environment
+Environment=PODMAN_SYSTEMD_UNIT=%n
+WorkingDirectory=%E/state
+ExecStart=runagent matrixctl run telegram
+ExecStop=runagent matrixctl stop telegram
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=240
+TimeoutStopSec=60
+SyslogIdentifier=%u
+
+[Install]
+WantedBy=default.target

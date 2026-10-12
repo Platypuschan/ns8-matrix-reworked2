@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+import hashlib
+import os
+import sys
+from pathlib import Path
+component = sys.argv[1] if len(sys.argv) > 1 else 'synapse'
+if component not in ('synapse', 'maubot'):
+    raise SystemExit('Unknown runtime component')
+root = Path(__file__).resolve().parents[2] / 'runtime' / component
+hash_ = hashlib.sha256()
+for file in sorted(root.rglob('*')):
+    if file.is_file():
+        hash_.update(str(file.relative_to(root)).encode() + b'\0' + file.read_bytes())
+print(os.getenv('REPOBASE', 'ghcr.io/platypuschan').lower() + '/matrix-reworked2-' + component + '-runtime:' + hash_.hexdigest()[:16])
